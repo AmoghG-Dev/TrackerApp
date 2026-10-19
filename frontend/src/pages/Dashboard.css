@@ -1,0 +1,129 @@
+
+.dashboard-contest-panel {
+  min-width: 0;
+}
+
+.dashboard-contest-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.dashboard-contest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid #243349;
+}
+
+.dashboard-contest-item:last-child {
+  border-bottom: none;
+}
+
+.dashboard-contest-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 7px;
+}
+
+.dashboard-contest-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.dashboard-contest-platform {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 7px;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  background: #1a2638;
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.dashboard-contest-platform.codeforces {
+  border-color: #2a4770;
+  background: #172b49;
+  color: #93c5fd;
+}
+
+.dashboard-contest-platform.leetcode {
+  border-color: #3d4148;
+  background: #252c36;
+  color: #e2e8f0;
+}
+
+.dashboard-contest-countdown {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.dashboard-contest-name {
+  width: 100%;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-contest-time {
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.dashboard-contest-link {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  background: #14243a;
+  color: #bfdbfe;
+  text-decoration: none;
+}
+
+.dashboard-contest-link:hover {
+  border-color: #5279ac;
+  background: #1b3454;
+}
+
+.dashboard-contest-message {
+  padding: 24px 10px;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.dashboard-contest-message strong {
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.dashboard-contest-message p {
+  margin: 7px 0 0;
+}
+
+@media (max-width: 600px) {
+  .dashboard-contest-item {
+    gap: 8px;
+  }
+
+  .dashboard-contest-name {
+    font-size: 12px;
+  }
+}
