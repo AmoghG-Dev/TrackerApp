@@ -1,0 +1,131 @@
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
+**/node_modules/
+
+# ==========================================
+# Build output
+# ==========================================
+dist/
+dist-ssr/
+build/
+coverage/
+*.tsbuildinfo
+
+# ==========================================
+# Environment variables and secrets
+# ==========================================
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Vite local environment files
+*.local
+
+# ==========================================
+# Python
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+
+# Test and type-check caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+htmlcov/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# ==========================================
+# Logs
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# Database and local data files
+# ==========================================
+*.sqlite
+*.sqlite3
+*.db
+
+# Local uploads and generated datasets
+uploads/
+tmp/
+temp/
+
+# ==========================================
+# Editor and IDE files
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ==========================================
+# Operating system files
+# ==========================================
+Desktop.ini
+
+# ==========================================
+# Deployment and tool caches
+# ==========================================
+.vercel/
+.cache/
+.parcel-cache/
+
+# ==========================================
+# Optional local configuration
+# ==========================================
+*.local.json
+
+# Environment variables and secrets
+backend/.env
+**/.env
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Backend environment file
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Frontend dependencies and build output
+node_modules/
+dist/
