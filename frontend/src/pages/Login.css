@@ -1,0 +1,172 @@
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f4f7fb;
+  color: #1e293b;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgb(15 23 42 / 8%);
+}
+
+.login-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-brand-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 12px;
+  border-radius: 14px;
+  background: #e8efff;
+  color: #2456c5;
+}
+
+.login-brand h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.login-brand p,
+.login-footnote {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 24px;
+  border-radius: 10px;
+  background: #f1f5f9;
+}
+
+.login-tabs button {
+  padding: 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.login-tabs button.active {
+  background: #fff;
+  color: #1d4ed8;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 10%);
+}
+
+.login-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.login-card label {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.login-card input {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #1e293b;
+  outline: none;
+}
+
+.login-card input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.login-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+}
+
+.login-input input {
+  border: 0;
+  box-shadow: none;
+}
+
+.login-submit,
+.google-login-button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-submit {
+  margin-top: 12px;
+  border: 1px solid #2456c5;
+  background: #2456c5;
+  color: #fff;
+}
+
+.login-submit:disabled,
+.google-login-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.google-login-button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+}
+
+.login-error {
+  margin: 8px 0;
+  color: #b91c1c;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.login-footnote {
+  margin: 20px 0 0;
+  text-align: center;
+  line-height: 1.5;
+}

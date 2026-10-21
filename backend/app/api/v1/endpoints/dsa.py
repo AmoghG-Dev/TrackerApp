@@ -1,12 +1,14 @@
+
 import json
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.api.dependencies import get_current_user
 from app.core.database import database
 from app.services.dsa_engine.question_selector import (
     generate_daily_questions,
@@ -26,10 +28,12 @@ assignments_collection = database["daily_assignments"]
 @router.post("/import/codeforces")
 def import_codeforces_questions(
     limit: int = Query(default=500, ge=1, le=2000),
+    user: dict = Depends(get_current_user),
 ):
     """
     Import a limited batch of Codeforces problems.
     Questions are uniquely identified by platform and platform_id.
+    Authentication is required because this modifies the shared bank.
     """
 
     api_url = "https://codeforces.com/api/problemset.problems"
@@ -191,10 +195,11 @@ def list_questions(
     topic: str | None = Query(default=None),
     platform: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
+    user: dict = Depends(get_current_user),
 ):
     """
-    Return questions from all platforms stored in MongoDB.
-    Optional filters narrow the shared question bank.
+    Return the shared question bank with the authenticated
+    user's own latest status for each question.
     """
 
     query = {}
@@ -229,10 +234,12 @@ def list_questions(
         question["_id"] for question in questions
     ]
 
-    # Get the latest attempt for each question.
+    user_id = str(user["_id"])
+
+    # Get this user's latest attempt for each question.
     latest_attempts = attempts_collection.find(
         {
-            "user_id": "default",
+            "user_id": user_id,
             "question_id": {"$in": question_ids},
         }
     ).sort("attempted_at", -1)
@@ -270,14 +277,18 @@ def list_questions(
 # --------------------------------------------------
 
 @router.get("/daily")
-def get_daily_questions():
+def get_daily_questions(
+    user: dict = Depends(get_current_user),
+):
     """
     Return today's saved assignment or generate one
-    through the question selector.
+    for the authenticated user.
     """
 
+    user_id = str(user["_id"])
+
     try:
-        assignment = generate_daily_questions(user_id="default")
+        assignment = generate_daily_questions(user_id=user_id)
 
     except HTTPException:
         raise
@@ -318,7 +329,10 @@ class AttemptCreate(BaseModel):
 
 
 @router.post("/attempts")
-def record_attempt(attempt: AttemptCreate):
+def record_attempt(
+    attempt: AttemptCreate,
+    user: dict = Depends(get_current_user),
+):
     allowed_statuses = {
         "pending",
         "solved",
@@ -354,18 +368,20 @@ def record_attempt(attempt: AttemptCreate):
             detail="Question not found.",
         )
 
-    # Pending means reset: clear this question's attempt history.
+    user_id = str(user["_id"])
+
+    # Pending means reset: clear only this user's history.
     if attempt.status == "pending":
         attempts_collection.delete_many(
             {
-                "user_id": "default",
+                "user_id": user_id,
                 "question_id": question_id,
             }
         )
 
         assignments_collection.update_many(
             {
-                "user_id": "default",
+                "user_id": user_id,
                 "questions.question_id": question_id,
             },
             {
@@ -390,7 +406,7 @@ def record_attempt(attempt: AttemptCreate):
 
     attempts_collection.insert_one(
         {
-            "user_id": "default",
+            "user_id": user_id,
             "question_id": question_id,
             "status": attempt.status,
             "time_taken_minutes": attempt.time_taken_minutes,
@@ -402,7 +418,7 @@ def record_attempt(attempt: AttemptCreate):
 
     assignments_collection.update_many(
         {
-            "user_id": "default",
+            "user_id": user_id,
             "questions.question_id": question_id,
         },
         {
