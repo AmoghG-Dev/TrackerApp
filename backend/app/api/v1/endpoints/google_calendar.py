@@ -242,6 +242,7 @@ def disconnect_google_calendar(user: dict = Depends(get_current_user)):
 
         try:
             service.events().delete(
+                
                 calendarId="primary",
                 eventId=event_id,
             ).execute()
