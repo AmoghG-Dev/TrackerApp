@@ -9,6 +9,7 @@ import {
   Search,
   Target,
 } from "lucide-react";
+import GoogleCalendar from "./pages/GoogleCalendar";
 
 import type { Question, Status } from "./types/tracker";
 
@@ -327,9 +328,11 @@ function App() {
 
           {activePage === "Contests" && <Contests />}
 
-          {activePage === "Learning (YouTube)" && (
-            <LearningPlanner />
-          )}
+{activePage === "Google Calendar" && <GoogleCalendar />}
+
+{activePage === "Learning (YouTube)" && (
+  <LearningPlanner />
+)}
 
           {["Analytics", "Profile", "Settings"].includes(activePage) && (
             <PlaceholderPage

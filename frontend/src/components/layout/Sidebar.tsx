@@ -2,6 +2,7 @@
 import {
   BookOpen,
   CalendarDays,
+  CalendarCheck,
   ChartNoAxesCombined,
   ChevronRight,
   CircleUserRound,
@@ -22,6 +23,7 @@ const navigation = [
   { label: "Dashboard", icon: LayoutDashboard },
   { label: "DSA Tracker", icon: Code2 },
   { label: "Contests", icon: CalendarDays },
+  { label: "Google Calendar", icon: CalendarCheck },
   { label: "Learning (YouTube)", icon: BookOpen },
   { label: "Analytics", icon: ChartNoAxesCombined },
   { label: "Profile", icon: CircleUserRound },
