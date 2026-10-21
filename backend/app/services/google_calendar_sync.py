@@ -8,11 +8,11 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from app.core.database import database
+from app.services.google_calendar_security import decrypt_token
 from app.api.v1.endpoints.contests import (
     fetch_codeforces_contests,
     fetch_leetcode_contests,
 )
-from app.services.google_calendar_security import decrypt_token
 
 connections = database["google_calendar_connections"]
 calendar_events = database["google_calendar_events"]
@@ -20,8 +20,8 @@ calendar_events = database["google_calendar_events"]
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 
 
-def get_google_credentials():
-    connection = connections.find_one({"_id": "local-user"})
+def get_google_credentials(user_id: str):
+    connection = connections.find_one({"_id": user_id})
 
     if not connection or not connection.get("refresh_token_encrypted"):
         raise HTTPException(
@@ -40,9 +40,7 @@ def get_google_credentials():
 
     return Credentials(
         token=None,
-        refresh_token=decrypt_token(
-            connection["refresh_token_encrypted"]
-        ),
+        refresh_token=decrypt_token(connection["refresh_token_encrypted"]),
         token_uri="https://oauth2.googleapis.com/token",
         client_id=client_id,
         client_secret=client_secret,
@@ -50,8 +48,8 @@ def get_google_credentials():
     )
 
 
-def build_calendar_service():
-    credentials = get_google_credentials()
+def build_calendar_service(user_id: str):
+    credentials = get_google_credentials(user_id)
 
     try:
         return build(
@@ -73,7 +71,11 @@ def fetch_upcoming_contests():
     return contests
 
 
-def sync_contests(days: int = 30, reminder_minutes: int = 30):
+def sync_contests(
+    user_id: str,
+    days: int = 30,
+    reminder_minutes: int = 30,
+):
     if not 1 <= days <= 90:
         raise HTTPException(
             status_code=400,
@@ -86,7 +88,7 @@ def sync_contests(days: int = 30, reminder_minutes: int = 30):
             detail="Reminder must be between 0 and 1440 minutes.",
         )
 
-    service = build_calendar_service()
+    service = build_calendar_service(user_id)
 
     now = datetime.now(timezone.utc)
     horizon = now + timedelta(days=days)
@@ -108,7 +110,9 @@ def sync_contests(days: int = 30, reminder_minutes: int = 30):
         if not now <= start <= horizon:
             continue
 
-        event_key = f'{contest["platform"].lower()}:{contest["id"]}'
+        event_key = (
+            f'{user_id}:{contest["platform"].lower()}:{contest["id"]}'
+        )
 
         event_body = {
             "summary": f'[{contest["platform"]}] {contest["name"]}',
@@ -162,6 +166,7 @@ def sync_contests(days: int = 30, reminder_minutes: int = 30):
                     {
                         "$set": {
                             "google_event_id": result["id"],
+                            "user_id": user_id,
                             "contest_url": contest["url"],
                             "platform": contest["platform"],
                             "synced_at": datetime.now(timezone.utc),
@@ -172,7 +177,6 @@ def sync_contests(days: int = 30, reminder_minutes: int = 30):
                 created += 1
 
         except HttpError as exc:
-            # Do not insert a replacement event on every update error.
             errors.append({
                 "contest": contest["name"],
                 "message": f"Google Calendar returned HTTP {exc.status_code}.",

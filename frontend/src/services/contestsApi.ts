@@ -1,4 +1,7 @@
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
+
 export type ContestPlatform = "Codeforces" | "LeetCode";
 
 export interface Contest {
@@ -21,9 +24,6 @@ interface ContestApiResponse {
   fetched_at: string;
 }
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
-
 export async function fetchContests(
   platform: ContestFilter = "all",
   limit = 50,
@@ -35,6 +35,9 @@ export async function fetchContests(
 
   const response = await fetch(
     `${API_BASE_URL}/contests?${params.toString()}`,
+    {
+      credentials: "include",
+    },
   );
 
   if (!response.ok) {

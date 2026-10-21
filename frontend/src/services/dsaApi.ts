@@ -27,6 +27,7 @@ async function request<T>(
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -34,8 +35,19 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed: ${response.status}`);
+    let message = `Request failed (${response.status})`;
+
+    try {
+      const payload = await response.json();
+      message =
+        typeof payload.detail === "string"
+          ? payload.detail
+          : message;
+    } catch {
+      // Keep the fallback error message.
+    }
+
+    throw new Error(message);
   }
 
   return response.json() as Promise<T>;
@@ -47,7 +59,7 @@ export function getDsaQuestions(): Promise<ApiQuestion[]> {
 
 export function recordDsaAttempt(
   questionId: string,
-  status: ApiAttemptStatus
+  status: ApiAttemptStatus,
 ): Promise<{ message: string }> {
   return request<{ message: string }>("/dsa/attempts", {
     method: "POST",

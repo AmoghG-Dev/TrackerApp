@@ -1,16 +1,21 @@
 ﻿
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  ChartNoAxesCombined,
   Check,
-  Code2,
   Flame,
   ListChecks,
+  LogOut,
   Search,
   Target,
 } from "lucide-react";
-import GoogleCalendar from "./pages/GoogleCalendar";
 
+import GoogleCalendar from "./pages/GoogleCalendar";
+import Login from "./pages/Login";
+import type { AuthUser } from "./services/authApi";
+import {
+  getCurrentUser,
+  logout,
+} from "./services/authApi";
 import type { Question, Status } from "./types/tracker";
 
 import Sidebar from "./components/layout/Sidebar";
@@ -31,79 +36,126 @@ import {
 } from "./services/dsaApi";
 
 function App() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const [activePage, setActivePage] = useState("Dashboard");
   const [questions, setQuestions] = useState<TrackerQuestion[]>([]);
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [notice, setNotice] = useState("");
 
-  // Load questions from the backend.
+  // Restore the session after initial load or browser refresh.
   useEffect(() => {
-    let isActive = true;
+    let active = true;
 
-    async function loadQuestions() {
-      setIsLoadingQuestions(true);
-
+    async function restoreSession() {
       try {
-        const apiQuestions = await getDsaQuestions();
+        const response = await getCurrentUser();
 
-        if (!isActive) return;
-
-        const mapped: TrackerQuestion[] = apiQuestions.map(
-          (item, index) => {
-            const difficulty: Question["difficulty"] =
-              item.difficulty === "easy"
-                ? "Easy"
-                : item.difficulty === "medium"
-                  ? "Medium"
-                  : "Hard";
-
-            const status: Status =
-              item.status === "solved"
-                ? "Solved"
-                : item.status === "retry"
-                  ? "Retry"
-                  : "Pending";
-
-            return {
-              id: index + 1,
-              apiId: item.id,
-              title: item.title,
-              difficulty,
-              topics: item.topics ?? [],
-              url: item.url,
-              frequency: item.frequency_score ?? 0,
-              status,
-              platform: item.platform,
-            };
-          },
-        );
-
-        setQuestions(mapped);
-        setNotice("");
-      } catch (error) {
-        console.error("Could not load questions from MongoDB:", error);
-
-        if (isActive) {
-          setQuestions([]);
-          setNotice(
-            "Could not load questions. Check that the backend and database are available.",
-          );
+        if (active) {
+          setUser(response.user);
+        }
+      } catch {
+        if (active) {
+          setUser(null);
         }
       } finally {
-        if (isActive) {
-          setIsLoadingQuestions(false);
+        if (active) {
+          setAuthLoading(false);
         }
       }
     }
 
-    void loadQuestions();
+    void restoreSession();
 
     return () => {
-      isActive = false;
+      active = false;
     };
   }, []);
+
+  // Load questions only after the user is authenticated.
+  const loadQuestions = useCallback(async () => {
+    setIsLoadingQuestions(true);
+
+    try {
+      const apiQuestions = await getDsaQuestions();
+
+      const mapped: TrackerQuestion[] = apiQuestions.map(
+        (item, index) => {
+          const difficulty: Question["difficulty"] =
+            item.difficulty === "easy"
+              ? "Easy"
+              : item.difficulty === "medium"
+                ? "Medium"
+                : "Hard";
+
+          const status: Status =
+            item.status === "solved"
+              ? "Solved"
+              : item.status === "retry"
+                ? "Retry"
+                : "Pending";
+
+          return {
+            id: index + 1,
+            apiId: item.id,
+            title: item.title,
+            difficulty,
+            topics: item.topics ?? [],
+            url: item.url,
+            frequency: item.frequency_score ?? 0,
+            status,
+            platform: item.platform,
+          };
+        },
+      );
+
+      setQuestions(mapped);
+      setNotice("");
+    } catch (error) {
+      console.error("Could not load questions:", error);
+      setQuestions([]);
+      setNotice(
+        "Could not load questions. Check that the backend and database are available.",
+      );
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      void loadQuestions();
+    } else {
+      setQuestions([]);
+      setIsLoadingQuestions(false);
+    }
+  }, [user, loadQuestions]);
+
+  function handleLogin(authenticatedUser: AuthUser) {
+    setUser(authenticatedUser);
+    setActivePage("Dashboard");
+    setNotice("Signed in successfully.");
+  }
+
+  async function handleLogout() {
+    setLoggingOut(true);
+
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    } finally {
+      setUser(null);
+      setQuestions([]);
+      setActivePage("Dashboard");
+      setNotice("");
+      setLoggingOut(false);
+    }
+  }
 
   const solved = questions.filter(
     (question) => question.status === "Solved",
@@ -119,7 +171,6 @@ function App() {
     setNotice("");
   }
 
-  // Save a status change and revert it if the API request fails.
   async function updateStatus(id: number, status: Status) {
     const question = questions.find((item) => item.id === id);
 
@@ -155,7 +206,7 @@ function App() {
       );
 
       setNotice(
-        "Could not save your status. Check that the backend is running and try again.",
+        "Could not save your status. Check your session and backend, then try again.",
       );
     }
   }
@@ -178,6 +229,18 @@ function App() {
     return matchesSearch && matchesFilter;
   });
 
+  if (authLoading) {
+    return (
+      <main className="auth-loading">
+        <p>Checking your session...</p>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -194,6 +257,21 @@ function App() {
         />
 
         <div className="page-content">
+          <div className="account-toolbar">
+            <span>
+              Signed in as <strong>{user.name || user.email}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="logout-button"
+            >
+              <LogOut size={16} />
+              {loggingOut ? "Signing out..." : "Sign out"}
+            </button>
+          </div>
+
           <Notice
             message={notice}
             onDismiss={() => setNotice("")}
@@ -249,9 +327,7 @@ function App() {
                 <StatCard
                   icon={<ListChecks size={19} />}
                   label="Remaining"
-                  value={String(
-                    Math.max(0, questions.length - solved),
-                  )}
+                  value={String(Math.max(0, questions.length - solved))}
                   caption="Not marked solved"
                   tone="purple"
                 />
@@ -280,7 +356,6 @@ function App() {
                 <div className="filter-row">
                   <div className="search-box">
                     <Search size={17} />
-
                     <input
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
@@ -328,11 +403,9 @@ function App() {
 
           {activePage === "Contests" && <Contests />}
 
-{activePage === "Google Calendar" && <GoogleCalendar />}
+          {activePage === "Google Calendar" && <GoogleCalendar />}
 
-{activePage === "Learning (YouTube)" && (
-  <LearningPlanner />
-)}
+          {activePage === "Learning (YouTube)" && <LearningPlanner />}
 
           {["Analytics", "Profile", "Settings"].includes(activePage) && (
             <PlaceholderPage

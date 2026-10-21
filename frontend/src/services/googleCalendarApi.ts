@@ -27,6 +27,7 @@ async function request<T>(
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...init?.headers,
@@ -60,7 +61,7 @@ export async function connectGoogleCalendar() {
     "/google-calendar/connect",
   );
 
-  // The browser must navigate to Google's OAuth consent page.
+  // Navigate to Google's OAuth consent page.
   window.location.assign(result.authorization_url);
 }
 

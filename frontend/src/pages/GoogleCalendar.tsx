@@ -1,48 +1,47 @@
-
 import { useCallback, useEffect, useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
-  CircleAlert,
-  CloudSync,
-  LoaderCircle,
   RefreshCw,
-  Unplug,
+  Unlink,
+  ExternalLink,
+  AlertCircle,
 } from "lucide-react";
 import {
   connectGoogleCalendar,
   disconnectGoogleCalendar,
   getGoogleCalendarStatus,
   syncGoogleCalendar,
+  type GoogleCalendarStatus,
   type GoogleCalendarSyncResult,
 } from "../services/googleCalendarApi";
 import "./GoogleCalendar.css";
 
 export default function GoogleCalendar() {
-  const [connected, setConnected] = useState(false);
+  const [status, setStatus] = useState<GoogleCalendarStatus>({
+    connected: false,
+    connected_at: null,
+  });
+  const [days, setDays] = useState(30);
+  const [reminderMinutes, setReminderMinutes] = useState(15);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [days, setDays] = useState(30);
-  const [reminderMinutes, setReminderMinutes] = useState(30);
-  const [codeforces, setCodeforces] = useState(true);
-  const [leetcode, setLeetcode] = useState(true);
-  const [autoSync, setAutoSync] = useState(false);
-  const [result, setResult] =
-    useState<GoogleCalendarSyncResult | null>(null);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [syncResult, setSyncResult] =
+    useState<GoogleCalendarSyncResult | null>(null);
 
-  const refreshStatus = useCallback(async () => {
+  const loadStatus = useCallback(async () => {
     setLoading(true);
+    setError("");
 
     try {
-      const status = await getGoogleCalendarStatus();
-      setConnected(status.connected);
+      setStatus(await getGoogleCalendarStatus());
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Could not load Google Calendar status.",
+          : "Unable to load Google Calendar status.",
       );
     } finally {
       setLoading(false);
@@ -50,26 +49,8 @@ export default function GoogleCalendar() {
   }, []);
 
   useEffect(() => {
-    void refreshStatus();
-
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.get("calendar_connected") === "true") {
-      setMessage("Google Calendar connected successfully.");
-      window.history.replaceState(
-        {},
-        "",
-        window.location.pathname,
-      );
-    } else if (params.has("calendar_error")) {
-      setError("Google authorization was not completed.");
-      window.history.replaceState(
-        {},
-        "",
-        window.location.pathname,
-      );
-    }
-  }, [refreshStatus]);
+    void loadStatus();
+  }, [loadStatus]);
 
   async function handleConnect() {
     setBusy(true);
@@ -82,7 +63,7 @@ export default function GoogleCalendar() {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to start Google authorization.",
+          : "Unable to connect Google Calendar.",
       );
       setBusy(false);
     }
@@ -90,7 +71,7 @@ export default function GoogleCalendar() {
 
   async function handleDisconnect() {
     const confirmed = window.confirm(
-      "Disconnect Google Calendar? Existing calendar events will remain in your calendar.",
+      "Disconnect Google Calendar and delete TrackerApp-managed contest events from your calendar? Other calendar events will not be affected.",
     );
 
     if (!confirmed) return;
@@ -98,64 +79,49 @@ export default function GoogleCalendar() {
     setBusy(true);
     setError("");
     setMessage("");
+    setSyncResult(null);
 
     try {
-      await disconnectGoogleCalendar();
-      setConnected(false);
-      setResult(null);
-      setAutoSync(false);
+      const result = await disconnectGoogleCalendar();
       setMessage(
-        "Google Calendar disconnected. Existing events were left untouched.",
+        result.message ||
+          "Google Calendar disconnected. TrackerApp contest events have been removed from your calendar.",
       );
+      await loadStatus();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to disconnect Google Calendar.",
+          : "Unable to disconnect Google Calendar. Please try again.",
       );
+      await loadStatus();
     } finally {
       setBusy(false);
     }
   }
 
   async function handleSync() {
-    if (!connected) {
-      setError("Connect Google Calendar before syncing.");
-      return;
-    }
-
-    if (!codeforces && !leetcode) {
-      setError("Select at least one contest platform.");
-      return;
-    }
-
     setBusy(true);
     setError("");
     setMessage("");
-    setResult(null);
+    setSyncResult(null);
 
     try {
-      // The current backend sync endpoint syncs both platforms.
-      // Platform-specific selection will be wired in the next step.
-      const syncResult = await syncGoogleCalendar(
-        days,
-        reminderMinutes,
-      );
+      const result = await syncGoogleCalendar(days, reminderMinutes);
+      setSyncResult(result);
 
-      setResult(syncResult);
-
-      if (syncResult.errors.length) {
-        setMessage(
-          "Sync finished, but some contests could not be synchronized.",
-        );
+      if (result.errors.length > 0) {
+        setMessage("Calendar sync completed with some errors.");
       } else {
-        setMessage("Contest synchronization completed.");
+        setMessage("Google Calendar sync completed successfully.");
       }
+
+      await loadStatus();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Contest synchronization failed.",
+          : "Unable to sync calendar events.",
       );
     } finally {
       setBusy(false);
@@ -163,260 +129,147 @@ export default function GoogleCalendar() {
   }
 
   return (
-    <main className="calendar-page">
-      <header className="calendar-page-header">
+    <main className="google-calendar-page">
+      <header className="google-calendar-header">
         <div>
-          <p className="calendar-eyebrow">INTEGRATIONS</p>
           <h1>Google Calendar</h1>
-          <p className="calendar-subtitle">
-            Keep your upcoming coding contests on your calendar.
-            Connect or disconnect whenever you choose.
-          </p>
+          <p>Sync upcoming coding contests to your Google Calendar.</p>
         </div>
-
-        <div className="calendar-header-icon">
-          <CalendarDays size={26} />
-        </div>
+        <CalendarDays size={32} />
       </header>
 
+      {error && (
+        <div className="google-calendar-alert error" role="alert">
+          <AlertCircle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
+
       {message && (
-        <div className="calendar-notice calendar-notice-success">
+        <div className="google-calendar-alert success" role="status">
           <CheckCircle2 size={18} />
           <span>{message}</span>
         </div>
       )}
 
-      {error && (
-        <div className="calendar-notice calendar-notice-error">
-          <CircleAlert size={18} />
-          <span>{error}</span>
-        </div>
-      )}
+      <section className="google-calendar-card">
+        <h2>Connection status</h2>
 
-      <section className="calendar-card">
-        <div className="calendar-connection-row">
-          <div className="calendar-service-icon">
-            <CalendarDays size={25} />
-          </div>
-
-          <div className="calendar-connection-copy">
-            <h2>Google Calendar connection</h2>
+        {loading ? (
+          <p>Checking connection…</p>
+        ) : (
+          <>
             <p>
-              {loading
-                ? "Checking connection..."
-                : connected
-                  ? "Your Google Calendar is connected."
-                  : "Not connected. Calendar access stays disabled until you connect."}
+              Status:{" "}
+              <strong>
+                {status.connected ? "Connected" : "Not connected"}
+              </strong>
             </p>
-          </div>
 
-          <span
-            className={`calendar-status ${
-              connected ? "is-connected" : "is-disconnected"
-            }`}
-          >
-            {loading
-              ? "Checking"
-              : connected
-                ? "Connected"
-                : "Disconnected"}
-          </span>
-        </div>
+            {status.connected_at && (
+              <p>
+                Connected on:{" "}
+                {new Date(status.connected_at).toLocaleString()}
+              </p>
+            )}
 
-        <div className="calendar-card-actions">
-          {connected ? (
-            <button
-              className="calendar-button calendar-button-secondary"
-              onClick={handleDisconnect}
-              disabled={loading || busy}
-            >
-              {busy ? (
-                <LoaderCircle className="calendar-spinner" size={17} />
-              ) : (
-                <Unplug size={17} />
-              )}
-              Disconnect
-            </button>
-          ) : (
-            <button
-              className="calendar-button calendar-button-primary"
-              onClick={handleConnect}
-              disabled={loading || busy}
-            >
-              {busy ? (
-                <LoaderCircle className="calendar-spinner" size={17} />
-              ) : (
-                <CalendarDays size={17} />
-              )}
-              Connect Google Calendar
-            </button>
-          )}
-
-          <button
-            className="calendar-button calendar-button-secondary"
-            onClick={() => void refreshStatus()}
-            disabled={loading || busy}
-          >
-            <RefreshCw size={16} />
-            Refresh status
-          </button>
-        </div>
+            {status.connected ? (
+              <button
+                type="button"
+                onClick={handleDisconnect}
+                disabled={busy || loading}
+              >
+                <Unlink size={16} />
+                {busy ? "Please wait…" : "Disconnect"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConnect}
+                disabled={busy || loading}
+              >
+                <ExternalLink size={16} />
+                {busy ? "Please wait…" : "Connect Google Calendar"}
+              </button>
+            )}
+          </>
+        )}
       </section>
 
-      <section className="calendar-card">
-        <div className="calendar-section-heading">
-          <div>
-            <h2>Contest sync preferences</h2>
-            <p>
-              Configure which contests to include and when reminders
-              should appear.
-            </p>
-          </div>
-          <CloudSync size={23} />
-        </div>
+      <section className="google-calendar-card">
+        <h2>Sync contest reminders</h2>
+        <p>
+          Choose how far ahead to sync contests and when to receive reminders.
+        </p>
 
-        <div className="calendar-platform-list">
-          <label className="calendar-option">
-            <input
-              type="checkbox"
-              checked={codeforces}
-              onChange={(event) =>
-                setCodeforces(event.target.checked)
-              }
-            />
-            <span>
-              <strong>Codeforces</strong>
-              <small>Upcoming programming contests</small>
-            </span>
-          </label>
-
-          <label className="calendar-option">
-            <input
-              type="checkbox"
-              checked={leetcode}
-              onChange={(event) =>
-                setLeetcode(event.target.checked)
-              }
-            />
-            <span>
-              <strong>LeetCode</strong>
-              <small>Upcoming coding contests</small>
-            </span>
-          </label>
-        </div>
-
-        <div className="calendar-settings-grid">
-          <label className="calendar-field">
-            <span>Sync horizon</span>
-            <select
-              value={days}
-              onChange={(event) =>
-                setDays(Number(event.target.value))
-              }
-            >
-              <option value={7}>Next 7 days</option>
-              <option value={14}>Next 14 days</option>
-              <option value={30}>Next 30 days</option>
-              <option value={60}>Next 60 days</option>
-              <option value={90}>Next 90 days</option>
-            </select>
-          </label>
-
-          <label className="calendar-field">
-            <span>Reminder before contest</span>
-            <select
-              value={reminderMinutes}
-              onChange={(event) =>
-                setReminderMinutes(Number(event.target.value))
-              }
-            >
-              <option value={0}>At contest start</option>
-              <option value={10}>10 minutes</option>
-              <option value={15}>15 minutes</option>
-              <option value={30}>30 minutes</option>
-              <option value={60}>1 hour</option>
-              <option value={120}>2 hours</option>
-            </select>
-          </label>
-        </div>
-
-        <label className="calendar-auto-sync">
-          <input
-            type="checkbox"
-            checked={autoSync}
-            onChange={(event) =>
-              setAutoSync(event.target.checked)
-            }
-          />
-          <span>
-            <strong>Automatic synchronization</strong>
-            <small>
-              Enable automatic contest syncing when supported by
-              the backend scheduler.
-            </small>
-          </span>
+        <label>
+          Sync contests for
+          <select
+            value={days}
+            onChange={(event) => setDays(Number(event.target.value))}
+            disabled={busy}
+          >
+            <option value={7}>Next 7 days</option>
+            <option value={14}>Next 14 days</option>
+            <option value={30}>Next 30 days</option>
+            <option value={60}>Next 60 days</option>
+            <option value={90}>Next 90 days</option>
+          </select>
         </label>
 
-        <div className="calendar-card-actions">
-          <button
-            className="calendar-button calendar-button-primary"
-            onClick={handleSync}
-            disabled={!connected || loading || busy}
+        <label>
+          Reminder before contest
+          <select
+            value={reminderMinutes}
+            onChange={(event) =>
+              setReminderMinutes(Number(event.target.value))
+            }
+            disabled={busy}
           >
-            {busy ? (
-              <LoaderCircle className="calendar-spinner" size={17} />
-            ) : (
-              <RefreshCw size={17} />
+            <option value={5}>5 minutes</option>
+            <option value={10}>10 minutes</option>
+            <option value={15}>15 minutes</option>
+            <option value={30}>30 minutes</option>
+            <option value={60}>1 hour</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={busy || loading || !status.connected}
+        >
+          <RefreshCw size={16} />
+          {busy ? "Please wait…" : "Sync calendar"}
+        </button>
+
+        {!status.connected && !loading && (
+          <p>Connect Google Calendar before syncing contests.</p>
+        )}
+
+        {syncResult && (
+          <div className="google-calendar-sync-result">
+            <h3>Sync summary</h3>
+            <p>Checked: {syncResult.checked}</p>
+            <p>Created: {syncResult.created}</p>
+            <p>Updated: {syncResult.updated}</p>
+            <p>Skipped: {syncResult.skipped}</p>
+
+            {syncResult.errors.length > 0 && (
+              <>
+                <h4>Events with errors</h4>
+                <ul>
+                  {syncResult.errors.map((item, index) => (
+                    <li key={`${item.contest}-${index}`}>
+                      {item.contest}: {item.message}
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
-            Sync Now
-          </button>
-
-          {!connected && (
-            <span className="calendar-inline-hint">
-              Connect Google Calendar to enable syncing.
-            </span>
-          )}
-        </div>
-      </section>
-
-      {result && (
-        <section className="calendar-card">
-          <h2>Last sync result</h2>
-
-          <div className="calendar-result-grid">
-            <div>
-              <strong>{result.checked}</strong>
-              <span>Contests checked</span>
-            </div>
-            <div>
-              <strong>{result.created}</strong>
-              <span>Events created</span>
-            </div>
-            <div>
-              <strong>{result.updated}</strong>
-              <span>Events updated</span>
-            </div>
-            <div>
-              <strong>{result.errors.length}</strong>
-              <span>Errors</span>
-            </div>
           </div>
-
-          {result.errors.length > 0 && (
-            <ul className="calendar-error-list">
-              {result.errors.map((item, index) => (
-                <li key={`${item.contest}-${index}`}>
-                  <strong>{item.contest}:</strong> {item.message}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <p className="calendar-last-sync">
-            Last attempted: {new Date(result.synced_at).toLocaleString()}
-          </p>
-        </section>
-      )}
+        )}
+      </section>
     </main>
   );
 }

@@ -4,7 +4,6 @@ import {
   CalendarDays,
   CalendarCheck,
   ChartNoAxesCombined,
-  ChevronRight,
   CircleUserRound,
   Code2,
   LayoutDashboard,
