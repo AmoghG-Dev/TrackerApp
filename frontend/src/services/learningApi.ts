@@ -118,3 +118,36 @@ export async function deletePlaylist(
     { method: "DELETE" },
   );
 }
+
+export async function updatePlaylist(
+  playlistId: string,
+  payload: { title?: string; start_date?: string; videos_per_day?: number },
+): Promise<LearningPlaylist> {
+  const playlist = await request<ApiPlaylist>(
+    `/learning/playlists/${encodeURIComponent(playlistId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+  return mapPlaylist(playlist);
+}
+
+export async function reschedulePlaylist(
+  playlistId: string,
+  startDate: string,
+  videosPerDay?: number,
+): Promise<LearningPlaylist> {
+  const playlist = await request<ApiPlaylist>(
+    `/learning/playlists/${encodeURIComponent(playlistId)}/reschedule`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        start_date: startDate,
+        ...(videosPerDay ? { videos_per_day: videosPerDay } : {}),
+      }),
+    },
+  );
+  return mapPlaylist(playlist);
+}
+

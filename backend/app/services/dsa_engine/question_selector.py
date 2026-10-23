@@ -331,9 +331,11 @@ def generate_daily_questions(
     """
     Create or return today's persistent assignment.
 
-    Each new assignment tries to contain one Easy, one Medium,
-    and one Hard question. If the sources do not provide enough
-    questions, the assignment may contain fewer than three.
+    Selects 3 questions per day with difficulty that scales with user progress:
+    - Beginner   (0-20% solved):  Easy, Easy, Medium
+    - Developing (21-50%):        Easy, Medium, Medium
+    - Advancing  (51-75%):        Easy, Medium, Hard
+    - Advanced   (76%+):          Medium, Medium, Hard
     """
     today = _utc_now().date()
     assignment_date = today.isoformat()
@@ -349,10 +351,32 @@ def generate_daily_questions(
         existing["id"] = str(existing.pop("_id"))
         return existing
 
+    # --- Determine user progress percentage from local attempts ---
+    attempts = list(ATTEMPTS.find({"user_id": user_id}))
+    latest_status: dict[str, str] = {}
+    for att in sorted(
+        attempts,
+        key=lambda x: x.get("attempted_at") or datetime.min,
+    ):
+        latest_status[str(att["question_id"])] = att.get("status", "")
+    solved_count = sum(1 for s in latest_status.values() if s == "solved")
+    total_count = QUESTIONS.count_documents({})
+    pct = (solved_count / total_count * 100) if total_count > 0 else 0
+
+    # Map progress percentage to a difficulty schedule (3 questions/day)
+    if pct < 20:
+        difficulties = ("easy", "easy", "medium")
+    elif pct < 50:
+        difficulties = ("easy", "medium", "medium")
+    elif pct < 75:
+        difficulties = ("easy", "medium", "hard")
+    else:
+        difficulties = ("medium", "medium", "hard")
+
     selected_questions = []
     selected_ids = set()
 
-    for difficulty in ("easy", "medium", "hard"):
+    for difficulty in difficulties:
         question = select_question(
             difficulty=difficulty,
             user_id=user_id,

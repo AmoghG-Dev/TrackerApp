@@ -1,17 +1,23 @@
-
 import { useEffect, useState } from "react";
+import {
+  CalendarSync,
+  ExternalLink,
+  Plus,
+} from "lucide-react";
 import {
   fetchContests,
   type Contest,
   type ContestFilter,
 } from "../services/contestsApi";
+import {
+  addPlatform,
+  getSupportedPlatforms,
+  getUserPlatforms,
+  type SupportedPlatform,
+  type UserPlatform,
+} from "../services/platformsApi";
+import { syncGoogleCalendar } from "../services/googleCalendarApi";
 import "./Contests.css";
-
-const FILTERS: { label: string; value: ContestFilter }[] = [
-  { label: "All Platforms", value: "all" },
-  { label: "Codeforces", value: "codeforces" },
-  { label: "LeetCode", value: "leetcode" },
-];
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -60,10 +66,22 @@ function formatStartTime(startTime: string): string {
 export default function Contests() {
   const [filter, setFilter] = useState<ContestFilter>("all");
   const [contests, setContests] = useState<Contest[]>([]);
+  const [platforms, setPlatforms] = useState<UserPlatform[]>([]);
+  const [supportedPlatforms, setSupportedPlatforms] = useState<SupportedPlatform[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [now, setNow] = useState(Date.now());
+  const [notice, setNotice] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const [refreshKey, setRefreshKey] = useState(0);
+  const [syncingCalendar, setSyncingCalendar] = useState(false);
+
+  // Quick Add Platform modal
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newKey, setNewKey] = useState("leetcode");
+  const [newName, setNewName] = useState("LeetCode");
+  const [newWebsite, setNewWebsite] = useState("https://leetcode.com");
+  const [newHandle, setNewHandle] = useState("");
+  const [addingPlatform, setAddingPlatform] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -73,15 +91,21 @@ export default function Contests() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadContests() {
+    async function loadContestsAndPlatforms() {
       setLoading(true);
       setError("");
 
       try {
-        const result = await fetchContests(filter, 50);
+        const [result, userPlats, supported] = await Promise.all([
+          fetchContests(filter, 50),
+          getUserPlatforms(),
+          getSupportedPlatforms(),
+        ]);
 
         if (!cancelled) {
           setContests(result.contests);
+          setPlatforms(userPlats);
+          setSupportedPlatforms(supported);
         }
       } catch (err) {
         if (!cancelled) {
@@ -96,12 +120,76 @@ export default function Contests() {
       }
     }
 
-    loadContests();
+    void loadContestsAndPlatforms();
 
     return () => {
       cancelled = true;
     };
   }, [filter, refreshKey]);
+
+  async function handleQuickCalendarSync() {
+    setSyncingCalendar(true);
+    setNotice("");
+    setError("");
+
+    try {
+      const res = await syncGoogleCalendar(30, 15);
+      setNotice(
+        `Synced with Google Calendar! Created: ${res.created}, Updated: ${res.updated}.`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not sync contests to Google Calendar. Make sure it is connected.",
+      );
+    } finally {
+      setSyncingCalendar(false);
+    }
+  }
+
+  function handlePlatformSelect(key: string) {
+    setNewKey(key);
+    const found = supportedPlatforms.find((p) => p.key === key);
+    if (found) {
+      setNewName(found.name);
+      setNewWebsite(found.website);
+    }
+  }
+
+  async function handleAddPlatformSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newHandle.trim()) return;
+
+    setAddingPlatform(true);
+    try {
+      const added = await addPlatform({
+        name: newName,
+        website: newWebsite,
+        handle: newHandle.trim(),
+        platform_key: newKey,
+        sync_contests: true,
+      });
+
+      setPlatforms((curr) => [added, ...curr]);
+      setShowAddModal(false);
+      setNewHandle("");
+      setNotice(`Platform '${added.name}' added with status: ${added.status}`);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add platform.");
+    } finally {
+      setAddingPlatform(false);
+    }
+  }
+
+  // Determine dynamic filters
+  const filterOptions = [
+    { label: "All Platforms", value: "all" },
+    { label: "Codeforces", value: "codeforces" },
+    { label: "LeetCode", value: "leetcode" },
+    { label: "AtCoder", value: "atcoder" },
+  ];
 
   return (
     <main className="contests-page">
@@ -109,19 +197,54 @@ export default function Contests() {
         <div>
           <h1>Contests</h1>
           <p>
-            Find upcoming programming contests and plan your practice.
+            Find upcoming programming contests from your configured platforms and plan ahead.
           </p>
         </div>
 
-        <button
-          type="button"
-          className="contest-refresh-button"
-          onClick={() => setRefreshKey((value) => value + 1)}
-          disabled={loading}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleQuickCalendarSync}
+            disabled={syncingCalendar}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <CalendarSync size={15} />
+            {syncingCalendar ? "Syncing..." : "Sync Calendar"}
+          </button>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setShowAddModal(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <Plus size={15} />
+            Add Platform
+          </button>
+
+          <button
+            type="button"
+            className="contest-refresh-button"
+            onClick={() => setRefreshKey((value) => value + 1)}
+            disabled={loading}
+          >
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
+
+      {notice && (
+        <div className="google-calendar-alert success" role="status" style={{ marginBottom: "16px" }}>
+          <span>{notice}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="google-calendar-alert error" role="alert" style={{ marginBottom: "16px" }}>
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="contest-summary">
         <div className="contest-summary-card">
@@ -131,10 +254,12 @@ export default function Contests() {
         </div>
 
         <div className="contest-summary-card">
-          <span className="contest-summary-label">Platforms</span>
-          <strong>2</strong>
+          <span className="contest-summary-label">Configured Platforms</span>
+          <strong>{platforms.length > 0 ? platforms.length : "Default (3)"}</strong>
           <span className="contest-summary-caption">
-            Codeforces and LeetCode
+            {platforms.length > 0
+              ? platforms.map((p) => p.name).join(", ")
+              : "Codeforces, LeetCode, AtCoder"}
           </span>
         </div>
       </div>
@@ -146,7 +271,7 @@ export default function Contests() {
         </div>
 
         <div className="contest-filters" aria-label="Filter contests">
-          {FILTERS.map((item) => (
+          {filterOptions.map((item) => (
             <button
               type="button"
               key={item.value}
@@ -188,8 +313,7 @@ export default function Contests() {
         <div className="contest-message">
           <strong>No upcoming contests found</strong>
           <p>
-            There may be no scheduled contests, or a platform may not have
-            returned its contest data. Try refreshing later.
+            There may be no scheduled contests for this filter right now. Try refreshing later.
           </p>
         </div>
       )}
@@ -205,9 +329,11 @@ export default function Contests() {
                 <div className="contest-card-title-row">
                   <span
                     className={`contest-platform ${
-                      contest.platform === "Codeforces"
+                      contest.platform.toLowerCase() === "codeforces"
                         ? "codeforces"
-                        : "leetcode"
+                        : contest.platform.toLowerCase() === "atcoder"
+                          ? "atcoder"
+                          : "leetcode"
                     }`}
                   >
                     {contest.platform}
@@ -233,10 +359,86 @@ export default function Contests() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                View contest <span aria-hidden="true">↗</span>
+                View contest <ExternalLink size={13} style={{ marginLeft: "4px" }} />
               </a>
             </article>
           ))}
+        </div>
+      )}
+
+      {/* Quick Add Platform Modal */}
+      {showAddModal && (
+        <div className="modal-backdrop">
+          <div className="modal-dialog">
+            <div className="modal-header">
+              <h3>Connect Coding Platform</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowAddModal(false)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleAddPlatformSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "14px" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Platform</span>
+                <select
+                  value={newKey}
+                  onChange={(e) => handlePlatformSelect(e.target.value)}
+                  style={{
+                    padding: "10px 12px",
+                    background: "#0c1523",
+                    border: "1px solid #23344a",
+                    borderRadius: "6px",
+                    color: "#f8fafc",
+                  }}
+                >
+                  {supportedPlatforms.map((sp) => (
+                    <option key={sp.key} value={sp.key}>
+                      {sp.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Handle / Username *</span>
+                <input
+                  type="text"
+                  required
+                  value={newHandle}
+                  onChange={(e) => setNewHandle(e.target.value)}
+                  placeholder="e.g. tourist"
+                  style={{
+                    padding: "10px 12px",
+                    background: "#0c1523",
+                    border: "1px solid #23344a",
+                    borderRadius: "6px",
+                    color: "#f8fafc",
+                  }}
+                />
+              </label>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={addingPlatform}
+                >
+                  {addingPlatform ? "Validating..." : "Add Platform"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </main>

@@ -49,8 +49,31 @@ export default function GoogleCalendar() {
   }, []);
 
   useEffect(() => {
-    void loadStatus();
-  }, [loadStatus]);
+    let cancelled = false;
+
+    async function init() {
+      try {
+        const s = await getGoogleCalendarStatus();
+        if (!cancelled) setStatus(s);
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load Google Calendar status.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleConnect() {
     setBusy(true);

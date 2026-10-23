@@ -1,5 +1,4 @@
-
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import type { Question, Status } from "../../types/tracker";
 
 export type TrackerQuestion = Question & {
@@ -10,11 +9,15 @@ export type TrackerQuestion = Question & {
 interface QuestionListProps {
   questions: TrackerQuestion[];
   onStatusChange: (id: number, status: Status) => void;
+  onEdit?: (question: TrackerQuestion) => void;
+  onDelete?: (question: TrackerQuestion) => void;
 }
 
 export default function QuestionList({
   questions,
   onStatusChange,
+  onEdit,
+  onDelete,
 }: QuestionListProps) {
   if (questions.length === 0) {
     return null;
@@ -83,6 +86,30 @@ export default function QuestionList({
             >
               Solve <ExternalLink size={14} />
             </a>
+
+            {onEdit && (
+              <button
+                type="button"
+                className="action-icon-button"
+                onClick={() => onEdit(question)}
+                title="Edit question"
+                aria-label={`Edit ${question.title}`}
+              >
+                <Pencil size={14} />
+              </button>
+            )}
+
+            {onDelete && (
+              <button
+                type="button"
+                className="action-icon-button danger"
+                onClick={() => onDelete(question)}
+                title="Delete question"
+                aria-label={`Delete ${question.title}`}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
         </article>
       ))}
