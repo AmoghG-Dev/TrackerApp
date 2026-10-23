@@ -51,7 +51,7 @@ const roadmap = [
 ];
 
 export default function Dashboard({
-  questions, solved, progress, isLoadingQuestions, onStatusChange, onNavigate,
+  questions, solved, progress, onStatusChange, onNavigate,
 }: DashboardProps) {
   const [upcomingContests, setUpcomingContests] = useState<Contest[]>([]);
   const [isLoadingContests, setIsLoadingContests] = useState(true);
