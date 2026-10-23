@@ -6,10 +6,11 @@ load_dotenv()
 
 MONGODB_URI = os.getenv("MONGODB_URI")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "tracker_app")
+
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
-    "http://localhost:5174",
-)
+    "https://tracker-app-jet-six.vercel.app",
+).rstrip("/")
 
 # Authentication
 AUTH_COOKIE_NAME = "tracker_session"
