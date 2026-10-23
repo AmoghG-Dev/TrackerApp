@@ -7,3 +7,4 @@ itsdangerous
 fastapi
 uvicorn[standard]
 pymongo
+httpx
