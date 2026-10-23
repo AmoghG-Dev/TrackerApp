@@ -1,144 +1,281 @@
-
+/* Container Background using your local public folder image */
 .login-page {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 24px;
-  background: #f4f7fb;
-  color: #1e293b;
+  background-image: url("/Aurora%20Over%20a%20Mountain%20Lake.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Glassmorphism Card Design - Broader & Higher Opacity for Readability */
 .login-card {
   width: 100%;
-  max-width: 420px;
-  padding: 32px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow: 0 12px 36px rgb(15 23 42 / 8%);
+  max-width: 460px; /* Increased width */
+  padding: 40px 36px; /* Increased padding */
+  background: rgba(15, 23, 42, 0.65); /* Richer dark frosted opacity for optimal contrast */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 28px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
+
+/* Brand Header */
+
+/* TrackerApp branding */
 
 .login-brand {
   text-align: center;
-  margin-bottom: 28px;
+  margin: 0 0 25px;
 }
 
 .login-brand-icon {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  margin: 0 auto 12px;
-  border-radius: 14px;
-  background: #e8efff;
-  color: #2456c5;
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 14px;
+
+  background-image: url("C:\Users\amogh\OneDrive\Desktop\TrackerApp\frontend\public\TrackerLogo.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+
+  border: none;
+  border-radius: 18px;
+  box-shadow: none;
 }
 
-.login-brand h1 {
+/* Gradient wordmark */
+
+.login-brand-title {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0;
+
   margin: 0;
-  font-size: 26px;
+
+  font-family: "Montserrat", sans-serif;
+font-size: 29px;
+line-height: 1.2;
+font-weight: 600;
+letter-spacing: -0.8px;
 }
 
-.login-brand p,
-.login-footnote {
-  color: #64748b;
+.brand-tracker {
+  color: #ffffff;
+}
+
+.brand-app {
+  background: linear-gradient(
+    100deg,
+    #38bdf8 0%,
+    #4385ff 45%,
+    #a78bfa 100%
+  );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Tagline */
+
+.login-brand-tagline {
+  margin: 5px 0 0;
+
+  color: #a8c4ff;
   font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: 0.1px;
 }
 
+
+/* Mode Switcher Tabs */
 .login-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   padding: 5px;
   margin-bottom: 24px;
-  border-radius: 10px;
-  background: #f1f5f9;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .login-tabs button {
-  padding: 10px;
+  padding: 11px 14px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 10px;
   background: transparent;
-  color: #64748b;
+  color: #cbd5e1;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.login-tabs button:hover {
+  color: #ffffff;
 }
 
 .login-tabs button.active {
-  background: #fff;
-  color: #1d4ed8;
-  box-shadow: 0 1px 4px rgb(15 23 42 / 10%);
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
 }
 
+/* Form Styles */
 .login-card form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .login-card label {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 13px;
   font-weight: 600;
+  color: #e2e8f0;
 }
 
-.login-card input {
-  width: 100%;
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #fff;
-  color: #1e293b;
-  outline: none;
-}
-
-.login-card input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
-}
-
+/* Custom Input Wrapper */
 .login-input {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-left: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  color: #64748b;
+  gap: 12px;
+  padding: 0 14px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.login-input:focus-within {
+  border-color: #60a5fa;
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
+}
+
+.login-input .input-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
 }
 
 .login-input input {
-  border: 0;
-  box-shadow: none;
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.login-submit,
-.google-login-button {
+.login-input input::placeholder {
+  color: #94a3b8;
+}
+
+/* Remove Chrome autofill background color */
+.login-input input:-webkit-autofill,
+.login-input input:-webkit-autofill:hover,
+.login-input input:-webkit-autofill:focus,
+.login-input input:-webkit-autofill:active {
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #ffffff !important;
+
+  /* Prevent Chrome from painting a colored inset */
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+
+  background-color: transparent !important;
+  background-image: none !important;
+
+  transition: background-color 99999s ease-out 0s;
+}
+
+
+.password-toggle {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: #ffffff;
+}
+
+/* Forgot Password Link */
+.forgot-password-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.forgot-password-link {
+  font-size: 13px;
+  color: #60a5fa;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.forgot-password-link:hover {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
+/* Submit Button */
+.login-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
-  padding: 12px;
-  border-radius: 8px;
+  margin-top: 18px;
+  padding: 13px;
+  border: none;
+  border-radius: 14px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+  transition: all 0.2s ease;
 }
 
-.login-submit {
-  margin-top: 12px;
-  border: 1px solid #2456c5;
-  background: #2456c5;
-  color: #fff;
+.login-submit:hover:not(:disabled) {
+  background: #1d4ed8;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.5);
+  transform: translateY(-1px);
 }
 
-.login-submit:disabled,
-.google-login-button:disabled {
-  cursor: not-allowed;
+.login-submit:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
 }
 
+/* Divider */
 .login-divider {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   margin: 20px 0;
   color: #94a3b8;
   font-size: 13px;
@@ -149,24 +286,113 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: #e2e8f0;
+  background: rgba(255, 255, 255, 0.2);
 }
 
+/* Google Login Button */
 .google-login-button {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
+.google-login-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Error & Footnote */
 .login-error {
-  margin: 8px 0;
-  color: #b91c1c;
+  margin: 10px 0 0;
+  color: #f87171;
   font-size: 13px;
-  overflow-wrap: anywhere;
+  font-weight: 500;
 }
 
 .login-footnote {
-  margin: 20px 0 0;
+  margin: 22px 0 0;
   text-align: center;
-  line-height: 1.5;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+
+/* Prevent page scrolling on both login and registration */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+html,
+body {
+  overflow: hidden;
+}
+
+.login-page {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding: 12px 16px;
+}
+
+/* Keep the card centered when it fits the viewport */
+.login-card {
+  flex-shrink: 0;
+  margin: auto;
+}
+
+/* Compact vertical spacing on shorter screens */
+@media (max-height: 800px) {
+  .login-card {
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+
+  .login-brand {
+    margin-bottom: 18px;
+  }
+
+  .login-brand-icon {
+    margin-bottom: 9px;
+  }
+
+  .login-tabs {
+    margin-bottom: 18px;
+  }
+
+  .login-field + .login-field {
+    margin-top: 10px;
+  }
+
+  .login-submit {
+    margin-top: 15px;
+  }
+
+  .login-divider {
+    margin-top: 14px;
+    margin-bottom: 14px;
+  }
+
+  .login-footnote {
+    margin-top: 14px;
+  }
 }

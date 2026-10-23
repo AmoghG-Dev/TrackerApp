@@ -1,22 +1,20 @@
-﻿
-import { useCallback, useEffect, useState } from "react";
+﻿import { lazy, Suspense, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import {
   Check,
   Flame,
   ListChecks,
-  LogOut,
+  Plus,
   Search,
   Target,
+  X,
 } from "lucide-react";
 
-import GoogleCalendar from "./pages/GoogleCalendar";
-import Login from "./pages/Login";
+const GoogleCalendar = lazy(() => import("./pages/GoogleCalendar"));
+const Login = lazy(() => import("./pages/Login"));
 import type { AuthUser } from "./services/authApi";
-import {
-  getCurrentUser,
-  logout,
-} from "./services/authApi";
-import type { Question, Status } from "./types/tracker";
+import { getCurrentUser, logout } from "./services/authApi";
+import type { Difficulty, Question, Status } from "./types/tracker";
 
 import Sidebar from "./components/layout/Sidebar";
 import Topbar, { Notice } from "./components/layout/Topbar";
@@ -24,15 +22,22 @@ import StatCard from "./components/tracker/StatCard";
 import QuestionList, {
   type TrackerQuestion,
 } from "./components/tracker/QuestionList";
-import PlaceholderPage from "./components/tracker/PlaceholderPage";
 
-import Dashboard from "./pages/Dashboard";
-import Contests from "./pages/Contests";
-import LearningPlanner from "./pages/LearningPlanner";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Contests = lazy(() => import("./pages/Contests"));
+const LearningPlanner = lazy(() => import("./pages/LearningPlanner"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 import {
+  createDsaQuestion,
+  deleteDsaQuestion,
   getDsaQuestions,
+  getDsaStats,
   recordDsaAttempt,
+  updateDsaQuestion,
+  type DsaStats,
 } from "./services/dsaApi";
 
 function App() {
@@ -42,10 +47,32 @@ function App() {
 
   const [activePage, setActivePage] = useState("Dashboard");
   const [questions, setQuestions] = useState<TrackerQuestion[]>([]);
+  const [stats, setStats] = useState<DsaStats | null>(null);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [notice, setNotice] = useState("");
+
+  // Add Question Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addTitle, setAddTitle] = useState("");
+  const [addUrl, setAddUrl] = useState("");
+  const [addDifficulty, setAddDifficulty] = useState<Difficulty>("Medium");
+  const [addPlatform, setAddPlatform] = useState("leetcode");
+  const [addTopics, setAddTopics] = useState("");
+  const [addFrequency, setAddFrequency] = useState(5);
+  const [addingQuestion, setAddingQuestion] = useState(false);
+
+  // Edit Question Modal State
+  const [editingQuestion, setEditingQuestion] =
+    useState<TrackerQuestion | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editDifficulty, setEditDifficulty] = useState<Difficulty>("Medium");
+  const [editPlatform, setEditPlatform] = useState("leetcode");
+  const [editTopics, setEditTopics] = useState("");
+  const [editFrequency, setEditFrequency] = useState(5);
+  const [updatingQuestion, setUpdatingQuestion] = useState(false);
 
   // Restore the session after initial load or browser refresh.
   useEffect(() => {
@@ -76,64 +103,75 @@ function App() {
     };
   }, []);
 
-  // Load questions only after the user is authenticated.
-  const loadQuestions = useCallback(async () => {
-    setIsLoadingQuestions(true);
-
-    try {
-      const apiQuestions = await getDsaQuestions();
-
-      const mapped: TrackerQuestion[] = apiQuestions.map(
-        (item, index) => {
-          const difficulty: Question["difficulty"] =
-            item.difficulty === "easy"
-              ? "Easy"
-              : item.difficulty === "medium"
-                ? "Medium"
-                : "Hard";
-
-          const status: Status =
-            item.status === "solved"
-              ? "Solved"
-              : item.status === "retry"
-                ? "Retry"
-                : "Pending";
-
-          return {
-            id: index + 1,
-            apiId: item.id,
-            title: item.title,
-            difficulty,
-            topics: item.topics ?? [],
-            url: item.url,
-            frequency: item.frequency_score ?? 0,
-            status,
-            platform: item.platform,
-          };
-        },
-      );
-
-      setQuestions(mapped);
-      setNotice("");
-    } catch (error) {
-      console.error("Could not load questions:", error);
-      setQuestions([]);
-      setNotice(
-        "Could not load questions. Check that the backend and database are available.",
-      );
-    } finally {
-      setIsLoadingQuestions(false);
-    }
-  }, []);
-
+  // Load questions and stats when the user is authenticated.
   useEffect(() => {
-    if (user) {
-      void loadQuestions();
-    } else {
-      setQuestions([]);
-      setIsLoadingQuestions(false);
+    let active = true;
+
+    if (!user) {
+      return;
     }
-  }, [user, loadQuestions]);
+
+    async function init() {
+      setIsLoadingQuestions(true);
+      try {
+        const [apiQuestions, dsaStats] = await Promise.all([
+          getDsaQuestions(),
+          getDsaStats().catch(() => null),
+        ]);
+
+        if (!active) return;
+
+        const mapped: TrackerQuestion[] = apiQuestions.map(
+          (item, index) => {
+            const difficulty: Question["difficulty"] =
+              item.difficulty === "easy"
+                ? "Easy"
+                : item.difficulty === "medium"
+                  ? "Medium"
+                  : "Hard";
+
+            const status: Status =
+              item.status === "solved"
+                ? "Solved"
+                : item.status === "retry"
+                  ? "Retry"
+                  : "Pending";
+
+            return {
+              id: index + 1,
+              apiId: item.id,
+              title: item.title,
+              difficulty,
+              topics: item.topics ?? [],
+              url: item.url,
+              frequency: item.frequency_score ?? 0,
+              status,
+              platform: item.platform,
+            };
+          },
+        );
+
+        setQuestions(mapped);
+        if (dsaStats) setStats(dsaStats);
+        setNotice("");
+      } catch (error) {
+        if (!active) return;
+        console.error("Could not load questions:", error);
+        setQuestions([]);
+        setNotice(
+          "Could not load questions. Check that the backend and database are available.",
+        );
+      } finally {
+        if (active) setIsLoadingQuestions(false);
+      }
+    }
+
+    void init();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   function handleLogin(authenticatedUser: AuthUser) {
     setUser(authenticatedUser);
@@ -194,6 +232,8 @@ function App() {
     try {
       await recordDsaAttempt(question.apiId, apiStatus);
       setNotice("Question status saved successfully.");
+      // Refresh stats
+      void getDsaStats().then((s) => setStats(s)).catch(() => null);
     } catch (error) {
       console.error("Could not save question status:", error);
 
@@ -207,6 +247,134 @@ function App() {
 
       setNotice(
         "Could not save your status. Check your session and backend, then try again.",
+      );
+    }
+  }
+
+  // Add Question Handler
+  async function handleAddQuestion(e: FormEvent) {
+    e.preventDefault();
+    if (!addTitle.trim() || !addUrl.trim()) return;
+
+    setAddingQuestion(true);
+    setNotice("");
+
+    try {
+      const created = await createDsaQuestion({
+        title: addTitle.trim(),
+        url: addUrl.trim(),
+        difficulty: addDifficulty.toLowerCase() as "easy" | "medium" | "hard",
+        platform: addPlatform.trim().toLowerCase(),
+        topics: addTopics
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        frequency_score: addFrequency,
+      });
+
+      const newQ: TrackerQuestion = {
+        id: questions.length + 1,
+        apiId: created.id,
+        title: created.title,
+        difficulty: addDifficulty,
+        topics: created.topics || [],
+        url: created.url,
+        frequency: created.frequency_score || 5,
+        status: "Pending",
+        platform: created.platform,
+      };
+
+      setQuestions((curr) => [newQ, ...curr]);
+      setShowAddModal(false);
+      setAddTitle("");
+      setAddUrl("");
+      setAddTopics("");
+      setNotice(`Question '${created.title}' added successfully.`);
+    } catch (err) {
+      setNotice(
+        err instanceof Error ? err.message : "Failed to add question.",
+      );
+    } finally {
+      setAddingQuestion(false);
+    }
+  }
+
+  // Open Edit Modal
+  function handleOpenEdit(question: TrackerQuestion) {
+    setEditingQuestion(question);
+    setEditTitle(question.title);
+    setEditUrl(question.url);
+    setEditDifficulty(question.difficulty);
+    setEditPlatform(question.platform || "leetcode");
+    setEditTopics((question.topics || []).join(", "));
+    setEditFrequency(question.frequency || 5);
+  }
+
+  // Submit Edit Question
+  async function handleEditQuestion(e: FormEvent) {
+    e.preventDefault();
+    if (!editingQuestion) return;
+
+    setUpdatingQuestion(true);
+    setNotice("");
+
+    try {
+      const updated = await updateDsaQuestion(editingQuestion.apiId, {
+        title: editTitle.trim(),
+        url: editUrl.trim(),
+        difficulty: editDifficulty.toLowerCase() as "easy" | "medium" | "hard",
+        platform: editPlatform.trim().toLowerCase(),
+        topics: editTopics
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        frequency_score: editFrequency,
+      });
+
+      setQuestions((curr) =>
+        curr.map((q) =>
+          q.apiId === editingQuestion.apiId
+            ? {
+                ...q,
+                title: updated.title,
+                url: updated.url,
+                difficulty: editDifficulty,
+                platform: updated.platform,
+                topics: updated.topics || [],
+                frequency: updated.frequency_score || 5,
+              }
+            : q,
+        ),
+      );
+
+      setEditingQuestion(null);
+      setNotice(`Question '${updated.title}' updated successfully.`);
+    } catch (err) {
+      setNotice(
+        err instanceof Error ? err.message : "Failed to update question.",
+      );
+    } finally {
+      setUpdatingQuestion(false);
+    }
+  }
+
+  // Delete Question Handler
+  async function handleDeleteQuestion(question: TrackerQuestion) {
+    const confirmed = window.confirm(
+      `Delete '${question.title}' from the question bank? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteDsaQuestion(question.apiId);
+      setQuestions((curr) =>
+        curr.filter((q) => q.apiId !== question.apiId),
+      );
+      setNotice(`Question '${question.title}' deleted.`);
+      void getDsaStats().then((s) => setStats(s)).catch(() => null);
+    } catch (err) {
+      setNotice(
+        err instanceof Error ? err.message : "Failed to delete question.",
       );
     }
   }
@@ -238,7 +406,17 @@ function App() {
   }
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <Suspense
+        fallback={
+          <main className="auth-loading">
+            <p>Loading login...</p>
+          </main>
+        }
+      >
+        <Login onLogin={handleLogin} />
+      </Suspense>
+    );
   }
 
   return (
@@ -248,6 +426,10 @@ function App() {
         solved={solved}
         progress={progress}
         onNavigate={openPage}
+        userName={user.name}
+        userEmail={user.email}
+        onLogout={handleLogout}
+        loggingOut={loggingOut}
       />
 
       <main className="main-area">
@@ -257,26 +439,18 @@ function App() {
         />
 
         <div className="page-content">
-          <div className="account-toolbar">
-            <span>
-              Signed in as <strong>{user.name || user.email}</strong>
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="logout-button"
-            >
-              <LogOut size={16} />
-              {loggingOut ? "Signing out..." : "Sign out"}
-            </button>
-          </div>
-
           <Notice
             message={notice}
             onDismiss={() => setNotice("")}
           />
 
+          <Suspense
+            fallback={
+              <div className="auth-loading" role="status" aria-live="polite">
+                <p>Loading page...</p>
+              </div>
+            }
+          >
           {activePage === "Dashboard" && (
             <Dashboard
               questions={questions}
@@ -298,13 +472,24 @@ function App() {
                     <span className="blue-period">.</span>
                   </h1>
                   <p className="subtitle">
-                    Track attempts, build habits, and revisit weak topics.
+                    Track attempts, add custom questions, and conquer coding challenges.
                   </p>
                 </div>
 
-                <span className="local-badge">
-                  MongoDB question bank
-                </span>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => setShowAddModal(true)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <Plus size={16} />
+                    Add Question
+                  </button>
+                  <span className="local-badge">
+                    MongoDB question bank
+                  </span>
+                </div>
               </section>
 
               <section className="stats-grid">
@@ -335,8 +520,8 @@ function App() {
                 <StatCard
                   icon={<Flame size={19} />}
                   label="Streak"
-                  value="—"
-                  caption="Not yet integrated"
+                  value={stats ? `${stats.current_streak} days` : "0 days"}
+                  caption={stats ? `Longest: ${stats.longest_streak} days` : "Calculated from attempts"}
                   tone="orange"
                 />
               </section>
@@ -345,7 +530,7 @@ function App() {
                 <div className="panel-heading">
                   <div>
                     <h2>Question bank</h2>
-                    <p>Find your next challenge.</p>
+                    <p>Find your next challenge or add new questions to practice.</p>
                   </div>
 
                   <span className="local-badge">
@@ -386,6 +571,8 @@ function App() {
                   <QuestionList
                     questions={filteredQuestions}
                     onStatusChange={updateStatus}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDeleteQuestion}
                   />
                 )}
 
@@ -398,6 +585,282 @@ function App() {
                     </p>
                   )}
               </section>
+
+              {/* Add Question Modal */}
+              {showAddModal && (
+                <div className="modal-backdrop">
+                  <div className="modal-dialog">
+                    <div className="modal-header">
+                      <h3>Add Question</h3>
+                      <button
+                        type="button"
+                        className="modal-close"
+                        onClick={() => setShowAddModal(false)}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleAddQuestion} style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "14px" }}>
+                      <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Title *</span>
+                        <input
+                          type="text"
+                          required
+                          value={addTitle}
+                          onChange={(e) => setAddTitle(e.target.value)}
+                          placeholder="e.g. Subarray Sum Equals K"
+                          style={{
+                            padding: "10px 12px",
+                            background: "#0c1523",
+                            border: "1px solid #23344a",
+                            borderRadius: "6px",
+                            color: "#f8fafc",
+                          }}
+                        />
+                      </label>
+
+                      <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Problem URL *</span>
+                        <input
+                          type="url"
+                          required
+                          value={addUrl}
+                          onChange={(e) => setAddUrl(e.target.value)}
+                          placeholder="https://leetcode.com/problems/subarray-sum-equals-k/"
+                          style={{
+                            padding: "10px 12px",
+                            background: "#0c1523",
+                            border: "1px solid #23344a",
+                            borderRadius: "6px",
+                            color: "#f8fafc",
+                          }}
+                        />
+                      </label>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
+                        <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Difficulty</span>
+                          <select
+                            value={addDifficulty}
+                            onChange={(e) => setAddDifficulty(e.target.value as Difficulty)}
+                            style={{
+                              padding: "10px 12px",
+                              background: "#0c1523",
+                              border: "1px solid #23344a",
+                              borderRadius: "6px",
+                              color: "#f8fafc",
+                            }}
+                          >
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                          </select>
+                        </label>
+
+                        <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Platform</span>
+                          <select
+                            value={addPlatform}
+                            onChange={(e) => setAddPlatform(e.target.value)}
+                            style={{
+                              padding: "10px 12px",
+                              background: "#0c1523",
+                              border: "1px solid #23344a",
+                              borderRadius: "6px",
+                              color: "#f8fafc",
+                            }}
+                          >
+                            <option value="leetcode">LeetCode</option>
+                            <option value="codeforces">Codeforces</option>
+                            <option value="atcoder">AtCoder</option>
+                            <option value="custom">Custom</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Topics (comma-separated)</span>
+                        <input
+                          type="text"
+                          value={addTopics}
+                          onChange={(e) => setAddTopics(e.target.value)}
+                          placeholder="Arrays, Hash Table, Prefix Sum"
+                          style={{
+                            padding: "10px 12px",
+                            background: "#0c1523",
+                            border: "1px solid #23344a",
+                            borderRadius: "6px",
+                            color: "#f8fafc",
+                          }}
+                        />
+                      </label>
+
+                      <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Frequency Score (1 to 10)</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={addFrequency}
+                          onChange={(e) => setAddFrequency(Number(e.target.value))}
+                          style={{
+                            padding: "10px 12px",
+                            background: "#0c1523",
+                            border: "1px solid #23344a",
+                            borderRadius: "6px",
+                            color: "#f8fafc",
+                            width: "100px",
+                          }}
+                        />
+                      </label>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => setShowAddModal(false)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="primary-button"
+                          disabled={addingQuestion}
+                        >
+                          {addingQuestion ? "Adding..." : "Add to Question Bank"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit Question Modal */}
+              {editingQuestion && (
+                <div className="modal-backdrop">
+                  <div className="modal-dialog">
+                    <div className="modal-header">
+                      <h3>Edit Question</h3>
+                      <button
+                        type="button"
+                        className="modal-close"
+                        onClick={() => setEditingQuestion(null)}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleEditQuestion} style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "14px" }}>
+                      <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Title</span>
+                        <input
+                          type="text"
+                          required
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          style={{
+                            padding: "10px 12px",
+                            background: "#0c1523",
+                            border: "1px solid #23344a",
+                            borderRadius: "6px",
+                            color: "#f8fafc",
+                          }}
+                        />
+                      </label>
+
+                      <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>URL</span>
+                        <input
+                          type="url"
+                          required
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          style={{
+                            padding: "10px 12px",
+                            background: "#0c1523",
+                            border: "1px solid #23344a",
+                            borderRadius: "6px",
+                            color: "#f8fafc",
+                          }}
+                        />
+                      </label>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
+                        <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Difficulty</span>
+                          <select
+                            value={editDifficulty}
+                            onChange={(e) => setEditDifficulty(e.target.value as Difficulty)}
+                            style={{
+                              padding: "10px 12px",
+                              background: "#0c1523",
+                              border: "1px solid #23344a",
+                              borderRadius: "6px",
+                              color: "#f8fafc",
+                            }}
+                          >
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                          </select>
+                        </label>
+
+                        <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Frequency</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={editFrequency}
+                            onChange={(e) => setEditFrequency(Number(e.target.value))}
+                            style={{
+                              padding: "10px 12px",
+                              background: "#0c1523",
+                              border: "1px solid #23344a",
+                              borderRadius: "6px",
+                              color: "#f8fafc",
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Topics (comma-separated)</span>
+                        <input
+                          type="text"
+                          value={editTopics}
+                          onChange={(e) => setEditTopics(e.target.value)}
+                          style={{
+                            padding: "10px 12px",
+                            background: "#0c1523",
+                            border: "1px solid #23344a",
+                            borderRadius: "6px",
+                            color: "#f8fafc",
+                          }}
+                        />
+                      </label>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => setEditingQuestion(null)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="primary-button"
+                          disabled={updatingQuestion}
+                        >
+                          {updatingQuestion ? "Saving..." : "Save Changes"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -407,12 +870,12 @@ function App() {
 
           {activePage === "Learning (YouTube)" && <LearningPlanner />}
 
-          {["Analytics", "Profile", "Settings"].includes(activePage) && (
-            <PlaceholderPage
-              page={activePage}
-              onBack={() => openPage("Dashboard")}
-            />
-          )}
+          {activePage === "Analytics" && <Analytics />}
+
+          {activePage === "Profile" && <Profile />}
+
+          {activePage === "Settings" && <Settings />}
+          </Suspense>
         </div>
       </main>
     </div>

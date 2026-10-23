@@ -1,4 +1,3 @@
-
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
@@ -20,6 +19,70 @@ export type ApiAttemptStatus =
   | "solved"
   | "unsolved"
   | "failed";
+
+export interface CreateQuestionPayload {
+  title: string;
+  url: string;
+  difficulty: "easy" | "medium" | "hard";
+  platform?: string;
+  topics?: string[];
+  frequency_score?: number;
+}
+
+export interface UpdateQuestionPayload {
+  title?: string;
+  url?: string;
+  difficulty?: "easy" | "medium" | "hard";
+  platform?: string;
+  topics?: string[];
+  frequency_score?: number;
+}
+
+export interface DsaStats {
+  total_questions: number;
+  solved_count: number;
+  retry_count: number;
+  pending_count: number;
+  current_streak: number;
+  longest_streak: number;
+  total_active_days: number;
+  difficulty: {
+    easy: { solved: number; total: number };
+    medium: { solved: number; total: number };
+    hard: { solved: number; total: number };
+  };
+  top_topics: { topic: string; solved: number }[];
+  activity_trend: { date: string; attempts: number }[];
+}
+
+export interface DailyAssignmentQuestion {
+  question_id: string;
+  title: string;
+  platform: string;
+  url: string;
+  difficulty: "easy" | "medium" | "hard";
+  topics: string[];
+  status: string;
+}
+
+export interface DailyAssignment {
+  id: string;
+  date: string;
+  questions: DailyAssignmentQuestion[];
+}
+
+export interface AttemptHistoryItem {
+  id: string;
+  question_id: string;
+  title: string;
+  platform: string;
+  difficulty: "easy" | "medium" | "hard";
+  url: string;
+  status: string;
+  time_taken_minutes?: number | null;
+  hints_used: number;
+  attempted_at: string;
+}
 
 async function request<T>(
   path: string,
@@ -57,6 +120,26 @@ export function getDsaQuestions(): Promise<ApiQuestion[]> {
   return request<ApiQuestion[]>("/dsa/questions");
 }
 
+export function createDsaQuestion(payload: CreateQuestionPayload): Promise<ApiQuestion> {
+  return request<ApiQuestion>("/dsa/questions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateDsaQuestion(id: string, payload: UpdateQuestionPayload): Promise<ApiQuestion> {
+  return request<ApiQuestion>(`/dsa/questions/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteDsaQuestion(id: string): Promise<{ message: string }> {
+  return request<{ message: string }>(`/dsa/questions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
 export function recordDsaAttempt(
   questionId: string,
   status: ApiAttemptStatus,
@@ -68,4 +151,16 @@ export function recordDsaAttempt(
       status,
     }),
   });
+}
+
+export function getDsaStats(): Promise<DsaStats> {
+  return request<DsaStats>("/dsa/stats");
+}
+
+export function getDailyQuestions(): Promise<DailyAssignment> {
+  return request<DailyAssignment>("/dsa/daily");
+}
+
+export function getAttemptHistory(): Promise<AttemptHistoryItem[]> {
+  return request<AttemptHistoryItem[]>("/dsa/attempts/history");
 }

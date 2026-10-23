@@ -1,8 +1,7 @@
-
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
-export type ContestPlatform = "Codeforces" | "LeetCode";
+export type ContestPlatform = string;
 
 export interface Contest {
   id: string | number;
@@ -14,7 +13,7 @@ export interface Contest {
   url: string;
 }
 
-export type ContestFilter = "all" | "codeforces" | "leetcode";
+export type ContestFilter = string;
 
 interface ContestApiResponse {
   count: number;

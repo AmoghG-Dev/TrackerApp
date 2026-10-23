@@ -9,10 +9,7 @@ from googleapiclient.errors import HttpError
 
 from app.core.database import database
 from app.services.google_calendar_security import decrypt_token
-from app.api.v1.endpoints.contests import (
-    fetch_codeforces_contests,
-    fetch_leetcode_contests,
-)
+from app.api.v1.endpoints.contests import fetch_aggregated_contests
 
 connections = database["google_calendar_connections"]
 calendar_events = database["google_calendar_events"]
@@ -65,10 +62,8 @@ def build_calendar_service(user_id: str):
         )
 
 
-def fetch_upcoming_contests():
-    contests = fetch_codeforces_contests()
-    contests.extend(fetch_leetcode_contests())
-    return contests
+def fetch_upcoming_contests(user_id: str | None = None):
+    return fetch_aggregated_contests(user_id=user_id)
 
 
 def sync_contests(
@@ -92,7 +87,7 @@ def sync_contests(
 
     now = datetime.now(timezone.utc)
     horizon = now + timedelta(days=days)
-    contests = fetch_upcoming_contests()
+    contests = fetch_upcoming_contests(user_id=user_id)
 
     created = 0
     updated = 0

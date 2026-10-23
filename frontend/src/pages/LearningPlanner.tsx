@@ -1,11 +1,12 @@
-
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
   BookOpen,
   CalendarDays,
+  CalendarSync,
   Check,
   ExternalLink,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ import {
   createPlaylist,
   updateVideoCompletion,
   deletePlaylist,
+  reschedulePlaylist,
 } from "../services/learningApi";
 
 import type { LearningPlaylist } from "../types/tracker";
@@ -52,6 +54,13 @@ export default function LearningPlanner() {
   const [videosPerDay, setVideosPerDay] = useState(2);
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Reschedule Modal States
+  const [rescheduleTarget, setRescheduleTarget] =
+    useState<LearningPlaylist | null>(null);
+  const [newStartDate, setNewStartDate] = useState(getTodayString());
+  const [newPace, setNewPace] = useState(2);
+  const [rescheduling, setRescheduling] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,6 +200,40 @@ export default function LearningPlanner() {
     }
   }
 
+  function openRescheduleModal(playlist: LearningPlaylist) {
+    setRescheduleTarget(playlist);
+    setNewStartDate(getTodayString());
+    setNewPace(playlist.videosPerDay || 2);
+  }
+
+  async function handleConfirmReschedule(e: FormEvent) {
+    e.preventDefault();
+    if (!rescheduleTarget) return;
+
+    setRescheduling(true);
+    try {
+      const updated = await reschedulePlaylist(
+        rescheduleTarget.id,
+        newStartDate,
+        newPace,
+      );
+
+      setPlaylists((curr) =>
+        curr.map((p) => (p.id === rescheduleTarget.id ? updated : p)),
+      );
+      setNotice(`Rescheduled '${rescheduleTarget.title}' starting from ${newStartDate}.`);
+      setRescheduleTarget(null);
+    } catch (err) {
+      setNotice(
+        err instanceof Error
+          ? `Reschedule failed: ${err.message}`
+          : "Failed to reschedule playlist.",
+      );
+    } finally {
+      setRescheduling(false);
+    }
+  }
+
   return (
     <>
       {notice && (
@@ -213,7 +256,7 @@ export default function LearningPlanner() {
             Learning Planner<span className="blue-period">.</span>
           </h1>
           <p className="subtitle">
-            Plan your videos, track completion, and keep learning on schedule.
+            Plan your videos, track completion, and reschedule smoothly when life happens.
           </p>
         </div>
         <span className="local-badge">MongoDB synced</span>
@@ -322,12 +365,20 @@ export default function LearningPlanner() {
               className="panel playlist-panel"
               key={playlist.id}
             >
-              <div className="panel-heading">
-                <div>
-                  <h2>{playlist.title}</h2>
-                  <p>
-                    {completedCount} of {playlist.videos.length} videos
-                    completed
+              <div
+                className="panel-heading"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ minWidth: "220px", flex: "1 1 auto" }}>
+                  <h2 style={{ wordBreak: "break-word" }}>{playlist.title}</h2>
+                  <p style={{ color: "#8798af", fontSize: "11px", marginTop: "2px" }}>
+                    {completedCount} of {playlist.videos.length} videos completed &bull; {playlist.videosPerDay} videos/day
                   </p>
                 </div>
 
@@ -336,28 +387,39 @@ export default function LearningPlanner() {
                     display: "flex",
                     gap: "8px",
                     alignItems: "center",
+                    flexWrap: "wrap",
                   }}
                 >
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => openRescheduleModal(playlist)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <CalendarSync size={14} /> Reschedule
+                  </button>
+
                   <a
                     className="secondary-button"
                     href={playlist.url}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Open YouTube <ExternalLink size={14} />
+                    YouTube <ExternalLink size={13} />
                   </a>
 
                   <button
                     type="button"
-                    className="text-button"
+                    className="action-icon-button danger"
                     onClick={() => removePlaylist(playlist.id)}
+                    title="Delete playlist"
                   >
-                    Delete playlist
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
 
-              <div className="playlist-progress">
+              <div className="playlist-progress" style={{ marginTop: "10px" }}>
                 <div
                   className="progress-fill"
                   style={{ width: `${progress}%` }}
@@ -373,9 +435,7 @@ export default function LearningPlanner() {
                   const scheduledDate = video.completed
                     ? "Completed"
                     : getScheduledDate(
-                        getTodayString() > playlist.startDate
-                          ? getTodayString()
-                          : playlist.startDate,
+                        playlist.startDate || getTodayString(),
                         remainingIndex,
                         playlist.videosPerDay,
                       );
@@ -399,8 +459,10 @@ export default function LearningPlanner() {
                         {video.completed && <Check size={15} />}
                       </button>
 
-                      <div className="video-details">
-                        <strong>{video.title}</strong>
+                      <div className="video-details" style={{ minWidth: 0 }}>
+                        <strong style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                          {video.title}
+                        </strong>
                         <span>{video.duration} min</span>
                       </div>
 
@@ -426,6 +488,84 @@ export default function LearningPlanner() {
           );
         })}
       </section>
+
+      {/* Reschedule Modal */}
+      {rescheduleTarget && (
+        <div className="modal-backdrop">
+          <div className="modal-dialog">
+            <div className="modal-header">
+              <h3>Reschedule Study Plan</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setRescheduleTarget(null)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <p style={{ color: "#94a3b8", fontSize: "12px", marginTop: "6px" }}>
+              Reset the starting date or adjust your daily pace for <strong>{rescheduleTarget.title}</strong>.
+            </p>
+
+            <form onSubmit={handleConfirmReschedule} style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "14px" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>New Start Date</span>
+                <input
+                  type="date"
+                  required
+                  value={newStartDate}
+                  onChange={(e) => setNewStartDate(e.target.value)}
+                  style={{
+                    padding: "10px 12px",
+                    background: "#0c1523",
+                    border: "1px solid #23344a",
+                    borderRadius: "6px",
+                    color: "#f8fafc",
+                  }}
+                />
+              </label>
+
+              <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 600 }}>Daily Pace (Videos Per Day)</span>
+                <select
+                  value={newPace}
+                  onChange={(e) => setNewPace(Number(e.target.value))}
+                  style={{
+                    padding: "10px 12px",
+                    background: "#0c1523",
+                    border: "1px solid #23344a",
+                    borderRadius: "6px",
+                    color: "#f8fafc",
+                  }}
+                >
+                  <option value={1}>1 video per day</option>
+                  <option value={2}>2 videos per day</option>
+                  <option value={3}>3 videos per day</option>
+                  <option value={4}>4 videos per day</option>
+                </select>
+              </label>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setRescheduleTarget(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={rescheduling}
+                >
+                  {rescheduling ? "Updating schedule..." : "Confirm Reschedule"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

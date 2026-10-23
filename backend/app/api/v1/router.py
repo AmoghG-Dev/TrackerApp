@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
@@ -8,6 +7,9 @@ from app.api.v1.endpoints import (
     google_calendar,
     health,
     learning,
+    platforms,
+    preferences,
+    profile,
 )
 
 api_router = APIRouter()
@@ -18,3 +20,6 @@ api_router.include_router(learning.router)
 api_router.include_router(contests.router)
 api_router.include_router(google_calendar.router)
 api_router.include_router(auth.router)
+api_router.include_router(platforms.router)
+api_router.include_router(preferences.router)
+api_router.include_router(profile.router)

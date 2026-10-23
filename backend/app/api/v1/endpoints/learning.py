@@ -41,6 +41,12 @@ class VideoCompletionUpdate(BaseModel):
     completed: bool
 
 
+class PlaylistUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=150)
+    start_date: date | None = None
+    videos_per_day: int | None = Field(default=None, ge=1, le=10)
+
+
 def serialize_playlist(playlist: dict) -> dict:
     playlist["id"] = str(playlist.pop("_id"))
 
@@ -357,3 +363,51 @@ def delete_playlist(
         )
 
     return {"message": "Playlist deleted successfully"}
+
+
+@router.patch("/playlists/{playlist_id}")
+def update_playlist(
+    playlist_id: str,
+    payload: PlaylistUpdate,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Update playlist details such as title, start_date, or videos_per_day.
+    """
+    if not ObjectId.is_valid(playlist_id):
+        raise HTTPException(status_code=400, detail="Invalid playlist ID")
+
+    oid = ObjectId(playlist_id)
+    user_id = str(user["_id"])
+
+    existing = playlists_collection.find_one({"_id": oid, "user_id": user_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+
+    update_fields = {}
+    if payload.title is not None and payload.title.strip():
+        update_fields["title"] = payload.title.strip()
+    if payload.start_date is not None:
+        update_fields["start_date"] = payload.start_date.isoformat()
+    if payload.videos_per_day is not None:
+        update_fields["videos_per_day"] = payload.videos_per_day
+
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    playlists_collection.update_one({"_id": oid, "user_id": user_id}, {"$set": update_fields})
+    updated = playlists_collection.find_one({"_id": oid, "user_id": user_id})
+    return serialize_playlist(updated)
+
+
+@router.post("/playlists/{playlist_id}/reschedule")
+def reschedule_playlist(
+    playlist_id: str,
+    payload: PlaylistUpdate,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Reschedule a playlist starting from a new date and/or new pace.
+    """
+    return update_playlist(playlist_id=playlist_id, payload=payload, user=user)
+
