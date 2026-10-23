@@ -64,20 +64,23 @@ def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
+
 def make_cookie(response: Response, token: str, expires_at: datetime) -> None:
     max_age = max(
         0,
         int((expires_at - datetime.now(timezone.utc)).total_seconds()),
     )
+
     response.set_cookie(
-    key=AUTH_COOKIE_NAME,
-    value=session_token,  # Keep your existing token variable
-    httponly=True,
-    secure=True,
-    samesite="none",
-    max_age=AUTH_SESSION_DAYS * 24 * 60 * 60,
-    path="/",
+        key=AUTH_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=max_age,
+        path="/",
     )
+
 
 
 def clear_cookie(response: Response) -> None:
