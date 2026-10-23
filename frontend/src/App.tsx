@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import { lazy, Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
   Check,
@@ -10,8 +10,8 @@ import {
   X,
 } from "lucide-react";
 
-import GoogleCalendar from "./pages/GoogleCalendar";
-import Login from "./pages/Login";
+const GoogleCalendar = lazy(() => import("./pages/GoogleCalendar"));
+const Login = lazy(() => import("./pages/Login"));
 import type { AuthUser } from "./services/authApi";
 import { getCurrentUser, logout } from "./services/authApi";
 import type { Difficulty, Question, Status } from "./types/tracker";
@@ -23,12 +23,12 @@ import QuestionList, {
   type TrackerQuestion,
 } from "./components/tracker/QuestionList";
 
-import Dashboard from "./pages/Dashboard";
-import Contests from "./pages/Contests";
-import LearningPlanner from "./pages/LearningPlanner";
-import Analytics from "./pages/Analytics";
-import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Contests = lazy(() => import("./pages/Contests"));
+const LearningPlanner = lazy(() => import("./pages/LearningPlanner"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 import {
   createDsaQuestion,
@@ -406,7 +406,17 @@ function App() {
   }
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <Suspense
+        fallback={
+          <main className="auth-loading">
+            <p>Loading login...</p>
+          </main>
+        }
+      >
+        <Login onLogin={handleLogin} />
+      </Suspense>
+    );
   }
 
   return (
@@ -434,6 +444,13 @@ function App() {
             onDismiss={() => setNotice("")}
           />
 
+          <Suspense
+            fallback={
+              <div className="auth-loading" role="status" aria-live="polite">
+                <p>Loading page...</p>
+              </div>
+            }
+          >
           {activePage === "Dashboard" && (
             <Dashboard
               questions={questions}
@@ -858,6 +875,7 @@ function App() {
           {activePage === "Profile" && <Profile />}
 
           {activePage === "Settings" && <Settings />}
+          </Suspense>
         </div>
       </main>
     </div>
