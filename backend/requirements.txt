@@ -4,3 +4,5 @@ google-auth-oauthlib
 cryptography
 pwdlib[argon2]
 itsdangerous
+fastapi
+uvicorn[standard]
