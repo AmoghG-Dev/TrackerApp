@@ -6,9 +6,10 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, HttpUrl
 
+from app.api.dependencies import get_current_user
 from app.core.database import database
 
 router = APIRouter(prefix="/learning", tags=["Learning"])
@@ -40,6 +41,12 @@ class VideoCompletionUpdate(BaseModel):
     completed: bool
 
 
+class PlaylistUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=150)
+    start_date: date | None = None
+    videos_per_day: int | None = Field(default=None, ge=1, le=10)
+
+
 def serialize_playlist(playlist: dict) -> dict:
     playlist["id"] = str(playlist.pop("_id"))
 
@@ -49,6 +56,7 @@ def serialize_playlist(playlist: dict) -> dict:
     elif start_date is not None:
         playlist["start_date"] = str(start_date)
 
+    # Do not expose internal ownership metadata.
     playlist.pop("user_id", None)
     return playlist
 
@@ -154,7 +162,10 @@ async def fetch_youtube_videos(playlist_id: str) -> list[dict]:
                         "is valid, and your quota has not been exceeded."
                     )
                 else:
-                    detail = f"YouTube API request failed ({response.status_code})."
+                    detail = (
+                        "YouTube API request failed "
+                        f"({response.status_code})."
+                    )
 
                 if reason:
                     detail += f" Reason: {reason}"
@@ -171,7 +182,7 @@ async def fetch_youtube_videos(playlist_id: str) -> list[dict]:
             if not page_token:
                 break
 
-        # Keep only valid video items and preserve playlist order.
+        # Keep valid videos and preserve playlist order.
         playlist_videos = []
 
         for item in items:
@@ -200,7 +211,7 @@ async def fetch_youtube_videos(playlist_id: str) -> list[dict]:
                 ),
             )
 
-        # Fetch duration details in batches of up to 50 video IDs.
+        # Fetch video durations in batches of up to 50 IDs.
         for start in range(0, len(playlist_videos), 50):
             batch = playlist_videos[start:start + 50]
             video_ids = ",".join(video["id"] for video in batch)
@@ -240,16 +251,23 @@ async def fetch_youtube_videos(playlist_id: str) -> list[dict]:
 
 
 @router.get("/playlists")
-def list_playlists():
+def list_playlists(
+    user: dict = Depends(get_current_user),
+):
+    user_id = str(user["_id"])
+
     playlists = playlists_collection.find(
-        {"user_id": "default"}
+        {"user_id": user_id}
     ).sort("created_at", -1)
 
     return [serialize_playlist(p) for p in playlists]
 
 
 @router.post("/playlists", status_code=201)
-async def create_playlist(payload: PlaylistCreate):
+async def create_playlist(
+    payload: PlaylistCreate,
+    user: dict = Depends(get_current_user),
+):
     title = payload.title.strip()
 
     if not title:
@@ -262,7 +280,7 @@ async def create_playlist(payload: PlaylistCreate):
     videos = await fetch_youtube_videos(playlist_id)
 
     playlist = {
-        "user_id": "default",
+        "user_id": str(user["_id"]),
         "title": title,
         "url": str(payload.url),
         "start_date": payload.start_date.isoformat(),
@@ -273,8 +291,14 @@ async def create_playlist(payload: PlaylistCreate):
 
     result = playlists_collection.insert_one(playlist)
     saved = playlists_collection.find_one(
-        {"_id": result.inserted_id}
+        {"_id": result.inserted_id, "user_id": str(user["_id"])}
     )
+
+    if not saved:
+        raise HTTPException(
+            status_code=500,
+            detail="Playlist was saved but could not be retrieved.",
+        )
 
     return serialize_playlist(saved)
 
@@ -284,6 +308,7 @@ def update_video_completion(
     playlist_id: str,
     video_id: str,
     payload: VideoCompletionUpdate,
+    user: dict = Depends(get_current_user),
 ):
     if not ObjectId.is_valid(playlist_id):
         raise HTTPException(
@@ -294,12 +319,12 @@ def update_video_completion(
     result = playlists_collection.update_one(
         {
             "_id": ObjectId(playlist_id),
-            "user_id": "default",
+            "user_id": str(user["_id"]),
             "videos.id": video_id,
         },
         {
             "$set": {
-                "videos.$.completed": payload.completed
+                "videos.$.completed": payload.completed,
             }
         },
     )
@@ -314,7 +339,10 @@ def update_video_completion(
 
 
 @router.delete("/playlists/{playlist_id}")
-def delete_playlist(playlist_id: str):
+def delete_playlist(
+    playlist_id: str,
+    user: dict = Depends(get_current_user),
+):
     if not ObjectId.is_valid(playlist_id):
         raise HTTPException(
             status_code=400,
@@ -324,7 +352,7 @@ def delete_playlist(playlist_id: str):
     result = playlists_collection.delete_one(
         {
             "_id": ObjectId(playlist_id),
-            "user_id": "default",
+            "user_id": str(user["_id"]),
         }
     )
 
@@ -335,3 +363,51 @@ def delete_playlist(playlist_id: str):
         )
 
     return {"message": "Playlist deleted successfully"}
+
+
+@router.patch("/playlists/{playlist_id}")
+def update_playlist(
+    playlist_id: str,
+    payload: PlaylistUpdate,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Update playlist details such as title, start_date, or videos_per_day.
+    """
+    if not ObjectId.is_valid(playlist_id):
+        raise HTTPException(status_code=400, detail="Invalid playlist ID")
+
+    oid = ObjectId(playlist_id)
+    user_id = str(user["_id"])
+
+    existing = playlists_collection.find_one({"_id": oid, "user_id": user_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+
+    update_fields = {}
+    if payload.title is not None and payload.title.strip():
+        update_fields["title"] = payload.title.strip()
+    if payload.start_date is not None:
+        update_fields["start_date"] = payload.start_date.isoformat()
+    if payload.videos_per_day is not None:
+        update_fields["videos_per_day"] = payload.videos_per_day
+
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    playlists_collection.update_one({"_id": oid, "user_id": user_id}, {"$set": update_fields})
+    updated = playlists_collection.find_one({"_id": oid, "user_id": user_id})
+    return serialize_playlist(updated)
+
+
+@router.post("/playlists/{playlist_id}/reschedule")
+def reschedule_playlist(
+    playlist_id: str,
+    payload: PlaylistUpdate,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Reschedule a playlist starting from a new date and/or new pace.
+    """
+    return update_playlist(playlist_id=playlist_id, payload=payload, user=user)
+

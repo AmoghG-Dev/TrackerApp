@@ -17,10 +17,11 @@
   box-sizing: border-box;
 }
 
-body {
+html, body {
   margin: 0;
   min-width: 360px;
   min-height: 100vh;
+  overflow-y: auto;
 }
 
 button,
@@ -50,171 +51,11 @@ a {
   background: #080e1b;
 }
 
-.sidebar {
-  width: 248px;
-  min-height: 100vh;
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  padding: 25px 15px 16px;
-  background: #0b1220;
-  border-right: 1px solid #1e293b;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  border: 0;
-  background: transparent;
-  padding: 0 8px;
-  margin-bottom: 42px;
-  color: #f8fafc;
-  font-size: 20px;
-  font-weight: 750;
-  letter-spacing: -0.6px;
-  text-align: left;
-}
-
-.brand-icon {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 11px;
-  color: white;
-  background: linear-gradient(140deg, #4285f4, #5048df);
-}
-
-.brand-light {
-  color: #93a4bb;
-  font-weight: 500;
-}
-
-.nav-label,
-.eyebrow {
-  color: #71819b;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 1.35px;
-}
-
-.nav-label {
-  padding: 0 11px;
-  margin-bottom: 12px;
-}
-
-.navigation {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.nav-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 43px;
-  padding: 0 12px;
-  color: #93a4bb;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  font-size: 12px;
-  font-weight: 550;
-  text-align: left;
-  transition: background 150ms, color 150ms;
-}
-
-.nav-item:hover {
-  background: #111d30;
-  color: #e2e8f0;
-}
-
-.nav-item.active {
-  color: #dbeafe;
-  background: #152747;
-  border-color: #203a62;
-}
-
-.nav-item.active > svg {
-  color: #70a5ff;
-}
-
-.active-dot {
-  position: absolute;
-  right: 12px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #60a5fa;
-}
-
-.sidebar-bottom {
-  margin-top: auto;
-}
-
-.daily-goal {
-  padding: 15px 13px;
-  border: 1px solid #26354b;
-  background: #101a2b;
-  border-radius: 12px;
-}
-
-.goal-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 650;
-  color: #e2e8f0;
-}
-
-.goal-heading svg {
-  color: #70a5ff;
-}
-
-.goal-numbers {
-  color: #aab8cb;
-  font-size: 11px;
-  margin-top: 12px;
-}
-
-.progress-track {
-  height: 6px;
-  background: #27364a;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-top: 10px;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #4adea0;
-  border-radius: inherit;
-  transition: width 200ms ease;
-}
-
-.daily-goal p {
-  margin: 10px 0 0;
-  color: #71819b;
-  font-size: 10px;
-}
-
-.sidebar-footer {
-  padding: 17px 5px 0;
-  color: #64748b;
-  font-size: 10px;
-}
-
 .main-area {
   flex: 1;
   min-width: 0;
   margin-left: 248px;
+  min-height: 100vh;
 }
 
 .topbar {
@@ -1011,40 +852,6 @@ p {
 }
 
 @media (max-width: 720px) {
-  .sidebar {
-    width: 65px;
-    padding: 18px 8px;
-  }
-
-  .brand {
-    justify-content: center;
-    padding: 0;
-    margin-bottom: 32px;
-  }
-
-  .brand > span:last-child,
-  .nav-label,
-  .nav-item > span,
-  .sidebar-bottom {
-    display: none;
-  }
-
-  .navigation {
-    gap: 8px;
-  }
-
-  .nav-item {
-    justify-content: center;
-    padding: 0;
-    min-height: 42px;
-  }
-
-  .active-dot {
-    right: 4px;
-    top: 5px;
-    width: 5px;
-    height: 5px;
-  }
 
   .main-area {
     margin-left: 65px;
@@ -1317,5 +1124,214 @@ p {
   .video-date {
     grid-column: 2;
     justify-self: start;
+  }
+}
+
+
+.auth-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+}
+
+.account-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.logout-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+/* Modals & Dialogs */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 9, 18, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.modal-dialog {
+  background: #0d1829;
+  border: 1px solid #24364e;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1f2f45;
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  color: #f8fafc;
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.modal-close:hover {
+  color: #f8fafc;
+  background: #1c2b40;
+}
+
+/* Action Icon Buttons */
+.action-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: #111d2e;
+  border: 1px solid #23344a;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-icon-button:hover {
+  color: #38bdf8;
+  border-color: #38bdf8;
+  background: #16263d;
+}
+
+.action-icon-button.danger:hover {
+  color: #f87171;
+  border-color: #f87171;
+  background: #2b1318;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ===== Reliable application-page scrolling ===== */
+
+/*
+ * Keep the authenticated app within the viewport and let the main content
+ * area own vertical scrolling. This avoids relying on document/body scrolling.
+ */
+.app-shell {
+  display: flex;
+  align-items: stretch;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  margin-left: 248px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 #080e1b;
+}
+
+.page-content {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  padding-bottom: 45px;
+}
+
+/* Keep the sidebar fixed while the main content scrolls independently. */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Keep the scrolling track visible in Chromium-based browsers. */
+.main-area::-webkit-scrollbar {
+  width: 9px;
+}
+
+.main-area::-webkit-scrollbar-track {
+  background: #080e1b;
+}
+
+.main-area::-webkit-scrollbar-thumb {
+  background: #475569;
+  border: 2px solid #080e1b;
+  border-radius: 8px;
+}
+
+.main-area::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Preserve the existing responsive sidebar offsets. */
+@media (max-width: 1050px) {
+  .main-area {
+    margin-left: 210px;
+  }
+}
+
+@media (max-width: 720px) {
+  .main-area {
+    margin-left: 65px;
   }
 }

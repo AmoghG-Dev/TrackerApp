@@ -31,6 +31,7 @@ async function request<T>(
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -38,10 +39,20 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(
-      message || `Request failed: ${response.status}`,
-    );
+    let message = `Request failed (${response.status})`;
+
+    try {
+      const payload = await response.json();
+
+      message =
+        typeof payload.detail === "string"
+          ? payload.detail
+          : message;
+    } catch {
+      // Keep the fallback error message.
+    }
+
+    throw new Error(message);
   }
 
   if (response.status === 204) {
@@ -107,3 +118,36 @@ export async function deletePlaylist(
     { method: "DELETE" },
   );
 }
+
+export async function updatePlaylist(
+  playlistId: string,
+  payload: { title?: string; start_date?: string; videos_per_day?: number },
+): Promise<LearningPlaylist> {
+  const playlist = await request<ApiPlaylist>(
+    `/learning/playlists/${encodeURIComponent(playlistId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+  return mapPlaylist(playlist);
+}
+
+export async function reschedulePlaylist(
+  playlistId: string,
+  startDate: string,
+  videosPerDay?: number,
+): Promise<LearningPlaylist> {
+  const playlist = await request<ApiPlaylist>(
+    `/learning/playlists/${encodeURIComponent(playlistId)}/reschedule`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        start_date: startDate,
+        ...(videosPerDay ? { videos_per_day: videosPerDay } : {}),
+      }),
+    },
+  );
+  return mapPlaylist(playlist);
+}
+
